@@ -57,6 +57,8 @@
             "group": "Shipment Service",
             "pages": [
               "api/shipments/overview",
+              "api/shipments/list",
+              "api/shipments/get",
               "api/shipments/create",
               "api/shipments/track",
               "api/shipments/update-status",
@@ -67,6 +69,10 @@
             "group": "Client Management",
             "pages": [
               "api/clients/overview",
+              "api/clients/list",
+              "api/clients/get",
+              "api/clients/create",
+              "api/clients/search",
               "api/clients/history"
             ]
           },
@@ -74,7 +80,9 @@
             "group": "Branch Offices",
             "pages": [
               "api/branches/overview",
-              "api/branches/list"
+              "api/branches/list",
+              "api/branches/get",
+              "api/branches/create"
             ]
           },
           {

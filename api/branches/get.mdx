@@ -1,0 +1,79 @@
+---
+title: 'Get Branch Office by ID'
+description: 'Retrieve a specific branch office by ID'
+api: 'GET /api/v1/sucursales/{id}'
+---
+
+## Endpoint
+
+```
+GET /api/v1/sucursales/{id}
+```
+
+Retrieve detailed information about a specific branch office using its unique identifier.
+
+## Path Parameters
+
+<ParamField path="id" type="number" required>
+  The unique identifier of the branch office
+</ParamField>
+
+## Response
+
+Returns a branch office object:
+
+<ResponseField name="id" type="number">
+  Unique branch identifier
+</ResponseField>
+
+<ResponseField name="codigoSucursal" type="string">
+  Branch code (e.g., "LIM-001", "CUS-001")
+</ResponseField>
+
+<ResponseField name="nombreSucursal" type="string">
+  Branch office name
+</ResponseField>
+
+<ResponseField name="direccion" type="string">
+  Physical address of the branch
+</ResponseField>
+
+<ResponseField name="ciudad" type="string">
+  City where the branch is located
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X GET http://localhost:8080/api/v1/sucursales/1
+```
+
+## Example Response
+
+```json
+{
+  "id": 1,
+  "codigoSucursal": "LIM-001",
+  "nombreSucursal": "Lima Centro",
+  "direccion": "Av. Abancay 123",
+  "ciudad": "Lima"
+}
+```
+
+## Error Handling
+
+If the branch office is not found, the endpoint may return an error response. Always handle potential errors in your client application.
+
+## Use Cases
+
+- Display branch details in shipment creation forms
+- Branch office management interfaces
+- Route planning and logistics
+- Customer-facing branch locator tools
+- Integration with mapping services
+
+## Related Endpoints
+
+- [List All Branches](/api/branches/list) - Get all branch offices
+- [Create Branch](/api/branches/create) - Register new branch office
+- [Create Shipment](/api/shipments/create) - Uses branch IDs for origin/destination

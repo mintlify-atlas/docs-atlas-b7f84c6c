@@ -1,0 +1,119 @@
+---
+title: 'Create Branch Office'
+description: 'Register a new branch office'
+api: 'POST /api/v1/sucursales'
+---
+
+## Endpoint
+
+```
+POST /api/v1/sucursales
+```
+
+Create a new branch office location for package drop-off and pickup operations.
+
+## Request Body
+
+<ParamField body="codigoSucursal" type="string" required>
+  Unique branch code (e.g., "LIM-001", "CUS-001", "AQP-001")
+</ParamField>
+
+<ParamField body="nombreSucursal" type="string" required>
+  Descriptive name for the branch office
+</ParamField>
+
+<ParamField body="direccion" type="string" required>
+  Complete physical address of the branch
+</ParamField>
+
+<ParamField body="ciudad" type="string" required>
+  City where the branch is located
+</ParamField>
+
+## Response
+
+Returns the created branch office object:
+
+<ResponseField name="id" type="number">
+  Unique branch identifier (auto-generated)
+</ResponseField>
+
+<ResponseField name="codigoSucursal" type="string">
+  Branch code
+</ResponseField>
+
+<ResponseField name="nombreSucursal" type="string">
+  Branch office name
+</ResponseField>
+
+<ResponseField name="direccion" type="string">
+  Physical address
+</ResponseField>
+
+<ResponseField name="ciudad" type="string">
+  City location
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X POST http://localhost:8080/api/v1/sucursales \
+  -H "Content-Type: application/json" \
+  -d '{
+    "codigoSucursal": "TRU-001",
+    "nombreSucursal": "Trujillo Centro",
+    "direccion": "Av. España 567",
+    "ciudad": "Trujillo"
+  }'
+```
+
+## Example Response
+
+```json
+{
+  "id": 4,
+  "codigoSucursal": "TRU-001",
+  "nombreSucursal": "Trujillo Centro",
+  "direccion": "Av. España 567",
+  "ciudad": "Trujillo"
+}
+```
+
+## Branch Code Conventions
+
+<Tip>
+Use a consistent naming convention for branch codes:
+- First 3 letters: City abbreviation (LIM, CUS, AQP, TRU, PIU, etc.)
+- Dash separator: -
+- 3 digits: Sequential number (001, 002, 003)
+
+Examples: LIM-001, CUS-002, AQP-001
+</Tip>
+
+## Validation Rules
+
+<Note>
+- **codigoSucursal**: Must be unique across all branches
+- **nombreSucursal**: Cannot be empty
+- **direccion**: Should be complete for accurate logistics
+- **ciudad**: Used for semantic search and route planning
+</Note>
+
+## Use Cases
+
+- Expanding to new cities or regions
+- Opening additional branches in existing cities
+- Administrative branch management
+- Network planning and logistics optimization
+
+## Integration with Shipments
+
+Once created, branch offices can be used as:
+- **Origin** (`sucursalOrigenId`) - Where customers drop off packages
+- **Destination** (`sucursalDestinoId`) - Where packages are delivered for pickup
+
+## Related Endpoints
+
+- [List All Branches](/api/branches/list) - View all branch offices
+- [Get Branch by ID](/api/branches/get) - Retrieve branch details
+- [Create Shipment](/api/shipments/create) - Create shipment between branches

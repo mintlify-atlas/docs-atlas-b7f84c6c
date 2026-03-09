@@ -1,0 +1,93 @@
+---
+title: 'List All Clients'
+description: 'Retrieve all clients in the system'
+api: 'GET /api/v1/clientes'
+---
+
+## Endpoint
+
+```
+GET /api/v1/clientes
+```
+
+Retrieve a complete list of all registered clients in the system.
+
+## Response
+
+Returns an array of client objects:
+
+<ResponseField name="[]" type="array">
+  Array of client objects
+  
+  <ResponseField name="id" type="number">
+    Unique client identifier
+  </ResponseField>
+  
+  <ResponseField name="dni" type="string">
+    National ID number (DNI) - 8 digits
+  </ResponseField>
+  
+  <ResponseField name="nombreCompleto" type="string">
+    Client's full name
+  </ResponseField>
+  
+  <ResponseField name="correo" type="string">
+    Client's email address
+  </ResponseField>
+  
+  <ResponseField name="telefono" type="string">
+    Client's phone number - 9 digits
+  </ResponseField>
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X GET http://localhost:8080/api/v1/clientes
+```
+
+## Example Response
+
+```json
+[
+  {
+    "id": 1,
+    "dni": "12345678",
+    "nombreCompleto": "María García",
+    "correo": "maria.garcia@email.com",
+    "telefono": "987654321"
+  },
+  {
+    "id": 2,
+    "dni": "87654321",
+    "nombreCompleto": "Juan Pérez",
+    "correo": "juan.perez@email.com",
+    "telefono": "912345678"
+  },
+  {
+    "id": 3,
+    "dni": "11223344",
+    "nombreCompleto": "Ana Torres",
+    "correo": "ana.torres@email.com",
+    "telefono": "998877665"
+  }
+]
+```
+
+<Note>
+This endpoint returns all clients without pagination. For searching specific clients, use the [search endpoint](/api/clients/search).
+</Note>
+
+## Use Cases
+
+- Populate client dropdown lists in admin interfaces
+- Export client data for reporting
+- Synchronize with external CRM systems
+- Administrative client management
+
+## Related Endpoints
+
+- [Get Client by ID](/api/clients/get) - Get specific client details
+- [Search Clients](/api/clients/search) - Search clients by keyword
+- [Create Client](/api/clients/create) - Register a new client
+- [Client History](/api/clients/history) - Get client shipment history

@@ -1,0 +1,134 @@
+---
+title: 'List All Shipments'
+description: 'Retrieve all shipments in the system'
+api: 'GET /api/v1/envios'
+---
+
+## Endpoint
+
+```
+GET /api/v1/envios
+```
+
+Retrieve a list of all shipments in the system. This endpoint returns complete shipment information for administrative purposes.
+
+## Response
+
+Returns an array of shipment objects:
+
+<ResponseField name="[]" type="array">
+  Array of shipment objects
+  
+  <ResponseField name="id" type="number">
+    Unique shipment identifier
+  </ResponseField>
+  
+  <ResponseField name="codigoSeguimiento" type="string">
+    Tracking code (format: ENV-{timestamp})
+  </ResponseField>
+  
+  <ResponseField name="estado" type="string">
+    Current shipment status (PENDIENTE, EN_TRANSITO, DISPONIBLE, ENTREGADO, CANCELADO)
+  </ResponseField>
+  
+  <ResponseField name="fechaEnvio" type="string">
+    Date and time when shipment was created
+  </ResponseField>
+  
+  <ResponseField name="fechaEntrega" type="string">
+    Date and time when shipment was delivered (null if not delivered)
+  </ResponseField>
+  
+  <ResponseField name="precio" type="number">
+    Shipment price
+  </ResponseField>
+  
+  <ResponseField name="placa" type="string">
+    Vehicle plate number assigned to shipment (null if not assigned)
+  </ResponseField>
+  
+  <ResponseField name="nombreDestinatario" type="string">
+    Recipient's name
+  </ResponseField>
+  
+  <ResponseField name="dniDestinatario" type="string">
+    Recipient's DNI
+  </ResponseField>
+  
+  <ResponseField name="remitente" type="object">
+    Sender information (ClienteDTO)
+  </ResponseField>
+  
+  <ResponseField name="sucursalOrigen" type="object">
+    Origin branch office (SucursalDTO)
+  </ResponseField>
+  
+  <ResponseField name="sucursalDestino" type="object">
+    Destination branch office (SucursalDTO)
+  </ResponseField>
+  
+  <ResponseField name="encomienda" type="object">
+    Package details (EncomiendaDTO)
+  </ResponseField>
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X GET http://localhost:8080/api/v1/envios
+```
+
+## Example Response
+
+```json
+[
+  {
+    "id": 1,
+    "codigoSeguimiento": "ENV-1709940000000",
+    "estado": "EN_TRANSITO",
+    "fechaEnvio": "2024-03-08T10:30:00",
+    "fechaEntrega": null,
+    "precio": 45.50,
+    "placa": "ABC-123",
+    "nombreDestinatario": "Carlos Rodríguez",
+    "dniDestinatario": "87654321",
+    "remitente": {
+      "id": 1,
+      "dni": "12345678",
+      "nombreCompleto": "María García",
+      "correo": "maria.garcia@email.com",
+      "telefono": "987654321"
+    },
+    "sucursalOrigen": {
+      "id": 1,
+      "codigoSucursal": "LIM-001",
+      "nombreSucursal": "Lima Centro",
+      "direccion": "Av. Abancay 123",
+      "ciudad": "Lima"
+    },
+    "sucursalDestino": {
+      "id": 2,
+      "codigoSucursal": "CUS-001",
+      "nombreSucursal": "Cusco Principal",
+      "direccion": "Av. El Sol 456",
+      "ciudad": "Cusco"
+    },
+    "encomienda": {
+      "id": 1,
+      "peso": 5.2,
+      "dimensiones": "30x40x50",
+      "descripcion": "Documentos importantes"
+    }
+  }
+]
+```
+
+<Note>
+This endpoint returns all shipments without pagination. For large datasets, consider using the filtered endpoints like GET /api/v1/envios/estado/{estado} with pagination.
+</Note>
+
+## Related Endpoints
+
+- [Get Shipment by ID](/api/shipments/get) - Get a specific shipment
+- [Track Shipment](/api/shipments/track) - Track by tracking code
+- [Get by Status](/api/shipments/overview) - Get shipments filtered by status with pagination

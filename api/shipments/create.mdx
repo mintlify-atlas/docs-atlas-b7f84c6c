@@ -73,7 +73,7 @@ Creates a new shipment with sender, recipient, package, and route information.
 </ResponseField>
 
 <ResponseField name="estado" type="string">
-  Current shipment status (default: "REGISTRADO")
+  Current shipment status (default: "PENDIENTE")
 </ResponseField>
 
 <ResponseField name="remitente" type="object">
@@ -156,7 +156,7 @@ curl -X POST http://localhost:8080/api/v1/envios \
 {
   "id": 42,
   "codigoSeguimiento": "ENV-20260309-ABCD1234",
-  "estado": "REGISTRADO",
+  "estado": "PENDIENTE",
   "remitente": {
     "id": 1,
     "dni": "12345678",

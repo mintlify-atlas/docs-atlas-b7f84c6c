@@ -25,7 +25,7 @@ Retrieve public tracking information for a shipment using its tracking code. Thi
 </ResponseField>
 
 <ResponseField name="estado" type="string">
-  Current shipment status: `REGISTRADO`, `EN_TRANSITO`, `DISPONIBLE`, `ENTREGADO`, or `CANCELADO`
+  Current shipment status: `PENDIENTE`, `EN_TRANSITO`, `DISPONIBLE`, `ENTREGADO`, or `CANCELADO`
 </ResponseField>
 
 <ResponseField name="fechaEnvio" type="string">
@@ -131,7 +131,7 @@ This endpoint returns public information only. Sensitive data like sender detail
 
 ## Shipment Status Meanings
 
-- **REGISTRADO**: Shipment has been registered and is awaiting processing
+- **PENDIENTE**: Shipment has been registered and is awaiting processing
 - **EN_TRANSITO**: Shipment is in transit to the destination
 - **DISPONIBLE**: Shipment has arrived and is available for pickup
 - **ENTREGADO**: Shipment has been successfully delivered to the recipient

@@ -1,0 +1,125 @@
+---
+title: 'Search Clients'
+description: 'Search for clients by keyword'
+api: 'GET /api/v1/clientes/search'
+---
+
+## Endpoint
+
+```
+GET /api/v1/clientes/search
+```
+
+Search for clients across all fields (DNI, name, email, and phone number) using a keyword.
+
+## Query Parameters
+
+<ParamField query="keyword" type="string" default="">
+  Search keyword to match against client fields (case-insensitive)
+</ParamField>
+
+<Note>
+If no keyword is provided (empty string), this endpoint returns all clients.
+</Note>
+
+## Response
+
+Returns an array of matching client objects:
+
+<ResponseField name="[]" type="array">
+  Array of client objects that match the search criteria
+  
+  <ResponseField name="id" type="number">
+    Unique client identifier
+  </ResponseField>
+  
+  <ResponseField name="dni" type="string">
+    National ID number (DNI)
+  </ResponseField>
+  
+  <ResponseField name="nombreCompleto" type="string">
+    Client's full name
+  </ResponseField>
+  
+  <ResponseField name="correo" type="string">
+    Client's email address
+  </ResponseField>
+  
+  <ResponseField name="telefono" type="string">
+    Client's phone number
+  </ResponseField>
+</ResponseField>
+
+## Example Requests
+
+### Search by name
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/clientes/search?keyword=garcia"
+```
+
+### Search by DNI
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/clientes/search?keyword=12345678"
+```
+
+### Search by email
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/clientes/search?keyword=maria"
+```
+
+### Search by phone
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/clientes/search?keyword=987"
+```
+
+## Example Response
+
+```json
+[
+  {
+    "id": 1,
+    "dni": "12345678",
+    "nombreCompleto": "María García",
+    "correo": "maria.garcia@email.com",
+    "telefono": "987654321"
+  },
+  {
+    "id": 5,
+    "dni": "99887766",
+    "nombreCompleto": "María Torres",
+    "correo": "maria.torres@email.com",
+    "telefono": "912345678"
+  }
+]
+```
+
+## Search Behavior
+
+The search performs a **partial, case-insensitive match** across:
+- DNI (national ID)
+- Full name
+- Email address
+- Phone number
+
+<Tip>
+The search is optimized for autocomplete and typeahead implementations. Results are returned as soon as any field contains the keyword.
+</Tip>
+
+## Use Cases
+
+- Client lookup in shipment creation forms
+- Autocomplete/typeahead client selectors
+- Administrative client search interfaces
+- Customer service lookups
+- Duplicate client detection
+
+## Related Endpoints
+
+- [List All Clients](/api/clients/list) - Get all clients without filtering
+- [Get Client by ID](/api/clients/get) - Get specific client
+- [Create Client](/api/clients/create) - Register new client
+- [Client History](/api/clients/history) - Get client's shipment history

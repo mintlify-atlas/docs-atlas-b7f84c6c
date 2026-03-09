@@ -1,0 +1,121 @@
+---
+title: 'Create or Update Client'
+description: 'Register a new client or update existing client information'
+api: 'POST /api/v1/clientes'
+---
+
+## Endpoint
+
+```
+POST /api/v1/clientes
+```
+
+Create a new client or update an existing client's information. If a client with the provided ID exists, their information will be updated.
+
+## Request Body
+
+<ParamField body="id" type="number">
+  Client ID (optional - omit for new clients, include for updates)
+</ParamField>
+
+<ParamField body="dni" type="string" required>
+  National ID number (DNI) - Must be exactly 8 digits
+</ParamField>
+
+<ParamField body="nombreCompleto" type="string" required>
+  Client's full name
+</ParamField>
+
+<ParamField body="correo" type="string" required>
+  Client's email address - Used for shipment tracking and notifications
+</ParamField>
+
+<ParamField body="telefono" type="string" required>
+  Client's phone number - Must be exactly 9 digits
+</ParamField>
+
+## Response
+
+Returns the created or updated client object:
+
+<ResponseField name="id" type="number">
+  Unique client identifier (auto-generated for new clients)
+</ResponseField>
+
+<ResponseField name="dni" type="string">
+  National ID number
+</ResponseField>
+
+<ResponseField name="nombreCompleto" type="string">
+  Client's full name
+</ResponseField>
+
+<ResponseField name="correo" type="string">
+  Client's email address
+</ResponseField>
+
+<ResponseField name="telefono" type="string">
+  Client's phone number
+</ResponseField>
+
+## Example Request - New Client
+
+```bash
+curl -X POST http://localhost:8080/api/v1/clientes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "dni": "12345678",
+    "nombreCompleto": "María García",
+    "correo": "maria.garcia@email.com",
+    "telefono": "987654321"
+  }'
+```
+
+## Example Response
+
+```json
+{
+  "id": 1,
+  "dni": "12345678",
+  "nombreCompleto": "María García",
+  "correo": "maria.garcia@email.com",
+  "telefono": "987654321"
+}
+```
+
+## Example Request - Update Existing Client
+
+```bash
+curl -X POST http://localhost:8080/api/v1/clientes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": 1,
+    "dni": "12345678",
+    "nombreCompleto": "María García López",
+    "correo": "maria.garcia.new@email.com",
+    "telefono": "987654321"
+  }'
+```
+
+## Validation Rules
+
+<Note>
+- **DNI**: Must be exactly 8 numeric characters
+- **Telefono**: Must be exactly 9 numeric characters
+- **Correo**: Must be a valid email format
+- **NombreCompleto**: Cannot be empty
+</Note>
+
+## Use Cases
+
+- Register new clients during shipment creation
+- Update client contact information
+- Import clients from external systems
+- Self-service client registration portals
+
+## Related Endpoints
+
+- [Get Client by ID](/api/clients/get) - Retrieve client details
+- [Search Clients](/api/clients/search) - Find clients by keyword
+- [List All Clients](/api/clients/list) - Get all clients
+- [Create Shipment](/api/shipments/create) - Create shipment for a client

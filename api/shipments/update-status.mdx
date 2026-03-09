@@ -20,7 +20,7 @@ Update the status of an existing shipment. This endpoint allows manual status tr
 
 <ParamField body="nuevoEstado" type="string" required>
   New status for the shipment. Valid values:
-  - `REGISTRADO` - Shipment registered
+  - `PENDIENTE` - Shipment pending/registered
   - `EN_TRANSITO` - In transit
   - `DISPONIBLE` - Available for pickup
   - `ENTREGADO` - Delivered
@@ -74,7 +74,7 @@ If the shipment is not found:
 ```
 
 <Warning>
-Ensure status transitions follow your business logic. Invalid transitions (e.g., from `ENTREGADO` to `REGISTRADO`) are not validated by this endpoint.
+Ensure status transitions follow your business logic. Invalid transitions (e.g., from `ENTREGADO` to `PENDIENTE`) are not validated by this endpoint.
 </Warning>
 
 ## Alternative Status Update Endpoints
@@ -89,7 +89,7 @@ For specific status transitions, consider using these specialized endpoints:
 
 Typical workflow:
 
-1. `REGISTRADO` → Initial state when created
+1. `PENDIENTE` → Initial state when created
 2. `EN_TRANSITO` → When assigned to a vehicle
 3. `DISPONIBLE` → When arrived at destination
 4. `ENTREGADO` → When picked up by recipient

@@ -1,0 +1,183 @@
+---
+title: 'Get Shipment by ID'
+description: 'Retrieve a specific shipment by its ID'
+api: 'GET /api/v1/envios/{id}'
+---
+
+## Endpoint
+
+```
+GET /api/v1/envios/{id}
+```
+
+Retrieve detailed information about a specific shipment using its unique identifier.
+
+## Path Parameters
+
+<ParamField path="id" type="number" required>
+  The unique identifier of the shipment
+</ParamField>
+
+## Response
+
+Returns a complete shipment object with all related information:
+
+<ResponseField name="id" type="number">
+  Unique shipment identifier
+</ResponseField>
+
+<ResponseField name="codigoSeguimiento" type="string">
+  Tracking code (format: ENV-{timestamp})
+</ResponseField>
+
+<ResponseField name="estado" type="string">
+  Current shipment status: PENDIENTE, EN_TRANSITO, DISPONIBLE, ENTREGADO, CANCELADO
+</ResponseField>
+
+<ResponseField name="fechaEnvio" type="string">
+  ISO 8601 datetime when shipment was created
+</ResponseField>
+
+<ResponseField name="fechaEntrega" type="string">
+  ISO 8601 datetime when shipment was delivered (null if not yet delivered)
+</ResponseField>
+
+<ResponseField name="precio" type="number">
+  Shipment cost in local currency
+</ResponseField>
+
+<ResponseField name="placa" type="string">
+  Vehicle plate number (null if not yet assigned)
+</ResponseField>
+
+<ResponseField name="nombreDestinatario" type="string">
+  Full name of the recipient
+</ResponseField>
+
+<ResponseField name="dniDestinatario" type="string">
+  Recipient's national ID number
+</ResponseField>
+
+<ResponseField name="remitente" type="object">
+  Sender/client information
+  <Expandable title="properties">
+    <ResponseField name="id" type="number">
+      Client ID
+    </ResponseField>
+    <ResponseField name="dni" type="string">
+      Client DNI
+    </ResponseField>
+    <ResponseField name="nombreCompleto" type="string">
+      Client full name
+    </ResponseField>
+    <ResponseField name="correo" type="string">
+      Client email
+    </ResponseField>
+    <ResponseField name="telefono" type="string">
+      Client phone number
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="sucursalOrigen" type="object">
+  Origin branch office details
+</ResponseField>
+
+<ResponseField name="sucursalDestino" type="object">
+  Destination branch office details
+</ResponseField>
+
+<ResponseField name="encomienda" type="object">
+  Package information
+  <Expandable title="properties">
+    <ResponseField name="id" type="number">
+      Package ID
+    </ResponseField>
+    <ResponseField name="peso" type="number">
+      Weight in kilograms
+    </ResponseField>
+    <ResponseField name="dimensiones" type="string">
+      Dimensions in format: LxWxH (cm)
+    </ResponseField>
+    <ResponseField name="descripcion" type="string">
+      Package contents description
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X GET http://localhost:8080/api/v1/envios/1
+```
+
+## Example Response
+
+```json
+{
+  "id": 1,
+  "codigoSeguimiento": "ENV-1709940000000",
+  "estado": "EN_TRANSITO",
+  "fechaEnvio": "2024-03-08T10:30:00",
+  "fechaEntrega": null,
+  "precio": 45.50,
+  "placa": "ABC-123",
+  "nombreDestinatario": "Carlos Rodríguez",
+  "dniDestinatario": "87654321",
+  "remitente": {
+    "id": 1,
+    "dni": "12345678",
+    "nombreCompleto": "María García",
+    "correo": "maria.garcia@email.com",
+    "telefono": "987654321"
+  },
+  "sucursalOrigen": {
+    "id": 1,
+    "codigoSucursal": "LIM-001",
+    "nombreSucursal": "Lima Centro",
+    "direccion": "Av. Abancay 123",
+    "ciudad": "Lima"
+  },
+  "sucursalDestino": {
+    "id": 2,
+    "codigoSucursal": "CUS-001",
+    "nombreSucursal": "Cusco Principal",
+    "direccion": "Av. El Sol 456",
+    "ciudad": "Cusco"
+  },
+  "encomienda": {
+    "id": 1,
+    "peso": 5.2,
+    "dimensiones": "30x40x50",
+    "descripcion": "Documentos importantes"
+  }
+}
+```
+
+## Error Responses
+
+### Shipment Not Found
+
+```json
+{
+  "error": "EnvioNotFoundException",
+  "message": "Envío no encontrado con id: 999"
+}
+```
+
+<Warning>
+This endpoint throws `EnvioNotFoundException` if the shipment with the specified ID does not exist.
+</Warning>
+
+## Use Cases
+
+- Administrative dashboard displaying shipment details
+- Shipment status verification
+- Integration with external systems
+- Internal tracking and auditing
+
+## Related Endpoints
+
+- [Track by Code](/api/shipments/track) - Track shipment using tracking code (public-facing)
+- [List All Shipments](/api/shipments/list) - Get all shipments
+- [Update Status](/api/shipments/update-status) - Change shipment state
