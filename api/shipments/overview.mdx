@@ -1,0 +1,71 @@
+---
+title: 'Shipment API Overview'
+description: 'Overview of shipment management endpoints'
+---
+
+## Base URL
+
+All shipment endpoints are available at:
+
+```
+http://localhost:8080/api/v1/envios
+```
+
+## Authentication
+
+<Note>
+The API currently operates without authentication. In production environments, implement proper authentication mechanisms.
+</Note>
+
+## Available Endpoints
+
+The Shipment Service provides comprehensive shipment management functionality:
+
+### Shipment Operations
+- **POST /api/v1/envios** - Create a new shipment
+- **GET /api/v1/envios/{id}** - Get shipment by ID
+- **GET /api/v1/envios** - List all shipments
+- **GET /api/v1/envios/seguimiento/{codigo}** - Track shipment by tracking code
+
+### Status Management
+- **PUT /api/v1/envios/actualizar-estado** - Update shipment status
+- **PUT /api/v1/envios/{id}/disponible** - Mark shipment as available for pickup
+- **PUT /api/v1/envios/{id}/cancelar** - Cancel a shipment
+- **GET /api/v1/envios/estado/{estado}** - Get shipments by status (paginated)
+
+### Package Operations
+- **POST /api/v1/envios/retirar** - Process package pickup/delivery
+- **POST /api/v1/envios/asignar-placa** - Assign vehicle plate to shipment
+
+### Client History
+- **GET /api/v1/envios/mis-envios** - Get shipment history by client email
+
+## Shipment States
+
+Shipments can have the following states:
+
+- `REGISTRADO` - Initial state when shipment is created
+- `EN_TRANSITO` - Shipment is in transit
+- `DISPONIBLE` - Shipment is available for pickup at destination
+- `ENTREGADO` - Shipment has been delivered
+- `CANCELADO` - Shipment has been cancelled
+
+## Response Format
+
+All endpoints return JSON responses. Successful operations return appropriate HTTP status codes:
+
+- `200 OK` - Successful GET, PUT operations
+- `201 Created` - Successful POST operations
+- `404 Not Found` - Resource not found
+- `500 Internal Server Error` - Server error
+
+## Error Handling
+
+Error responses include descriptive messages:
+
+```json
+{
+  "error": "EnvioNotFoundException",
+  "message": "Envío no encontrado con id: 123"
+}
+```

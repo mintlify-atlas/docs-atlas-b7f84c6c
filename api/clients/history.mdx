@@ -1,0 +1,198 @@
+---
+title: 'Client Shipment History'
+description: 'Retrieve shipment history for a client'
+api: 'GET /api/v1/envios/mis-envios'
+---
+
+## Endpoint
+
+```
+GET /api/v1/envios/mis-envios
+```
+
+Retrieve all shipments sent by a client using their email address. This is a public-facing endpoint suitable for customer portals.
+
+## Query Parameters
+
+<ParamField query="correo" type="string" required>
+  The email address of the client
+</ParamField>
+
+## Response
+
+Returns an array of shipment records:
+
+<ResponseField name="[]" type="array">
+  Array of shipment objects
+  
+  <ResponseField name="codigoSeguimiento" type="string">
+    Tracking code
+  </ResponseField>
+  
+  <ResponseField name="estado" type="string">
+    Current shipment status
+  </ResponseField>
+  
+  <ResponseField name="fechaEnvio" type="string">
+    Date and time when shipment was created
+  </ResponseField>
+  
+  <ResponseField name="fechaEntrega" type="string">
+    Date and time when shipment was delivered (null if not delivered)
+  </ResponseField>
+  
+  <ResponseField name="precio" type="number">
+    Shipment price
+  </ResponseField>
+  
+  <ResponseField name="nombreDestinatario" type="string">
+    Recipient's name
+  </ResponseField>
+  
+  <ResponseField name="origen" type="object">
+    Origin branch information
+    
+    <ResponseField name="origen.codigoSucursal" type="string">
+      Branch code
+    </ResponseField>
+    
+    <ResponseField name="origen.nombreSucursal" type="string">
+      Branch name
+    </ResponseField>
+    
+    <ResponseField name="origen.ciudad" type="string">
+      City
+    </ResponseField>
+  </ResponseField>
+  
+  <ResponseField name="destino" type="object">
+    Destination branch information
+  </ResponseField>
+  
+  <ResponseField name="encomienda" type="object">
+    Package details
+    
+    <ResponseField name="encomienda.peso" type="number">
+      Weight in kg
+    </ResponseField>
+    
+    <ResponseField name="encomienda.dimensiones" type="string">
+      Dimensions
+    </ResponseField>
+    
+    <ResponseField name="encomienda.descripcion" type="string">
+      Description
+    </ResponseField>
+  </ResponseField>
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/envios/mis-envios?correo=maria.garcia@email.com"
+```
+
+## Example Response
+
+```json
+[
+  {
+    "codigoSeguimiento": "ENV-20260309-ABCD1234",
+    "estado": "ENTREGADO",
+    "fechaEnvio": "2026-03-09T10:30:00",
+    "fechaEntrega": "2026-03-12T14:20:00",
+    "precio": 25.50,
+    "nombreDestinatario": "Juan Pérez",
+    "origen": {
+      "codigoSucursal": "LIM-001",
+      "nombreSucursal": "Lima Centro",
+      "ciudad": "Lima"
+    },
+    "destino": {
+      "codigoSucursal": "CUS-001",
+      "nombreSucursal": "Cusco Principal",
+      "ciudad": "Cusco"
+    },
+    "encomienda": {
+      "peso": 2.5,
+      "dimensiones": "30x40x20 cm",
+      "descripcion": "Documentos importantes"
+    }
+  },
+  {
+    "codigoSeguimiento": "ENV-20260305-WXYZ9876",
+    "estado": "EN_TRANSITO",
+    "fechaEnvio": "2026-03-05T08:15:00",
+    "fechaEntrega": null,
+    "precio": 35.00,
+    "nombreDestinatario": "Ana López",
+    "origen": {
+      "codigoSucursal": "LIM-001",
+      "nombreSucursal": "Lima Centro",
+      "ciudad": "Lima"
+    },
+    "destino": {
+      "codigoSucursal": "AQP-001",
+      "nombreSucursal": "Arequipa Centro",
+      "ciudad": "Arequipa"
+    },
+    "encomienda": {
+      "peso": 5.0,
+      "dimensiones": "50x60x30 cm",
+      "descripcion": "Paquete con productos electrónicos"
+    }
+  }
+]
+```
+
+## Error Response
+
+If the client is not found:
+
+```json
+{
+  "error": "ClienteNotFoundException",
+  "message": "Cliente no encontrado con correo: maria.garcia@email.com"
+}
+```
+
+## Empty Result
+
+If the client exists but has no shipments:
+
+```json
+[]
+```
+
+<Note>
+Results are ordered by shipment date, with most recent shipments first.
+</Note>
+
+## Alternative Endpoint
+
+For paginated results and additional client information, use:
+
+```
+GET /api/v1/clientes/{clienteId}/envios?page=0&size=10
+```
+
+This endpoint requires the client ID and returns a paginated response with metadata:
+
+```json
+{
+  "clienteId": 1,
+  "nombreCompleto": "María García",
+  "correo": "maria.garcia@email.com",
+  "envios": {
+    "content": [...],
+    "totalElements": 15,
+    "totalPages": 2,
+    "size": 10,
+    "number": 0
+  }
+}
+```
+
+<Warning>
+This endpoint returns public information only. Sensitive details like delivery passwords are excluded.
+</Warning>

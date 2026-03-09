@@ -1,0 +1,652 @@
+---
+title: 'Creating Shipments'
+description: 'Complete guide to creating shipments via REST API with curl examples and validation rules'
+---
+
+Learn how to create shipments using the REST API, including all required fields, validation rules, and automatic semantic synchronization.
+
+## Overview
+
+Creating a shipment involves three main entities:
+
+1. **Client (Remitente)** - The sender
+2. **Encomienda (Package)** - The physical item being shipped
+3. **Envio (Shipment)** - The transport operation
+
+## Prerequisites
+
+Before creating a shipment, ensure you have:
+
+- **Sender client** created in the system
+- **Origin branch (sucursal)** exists
+- **Destination branch (sucursal)** exists
+- Both services running (ports 8080 and 8081)
+
+## Step 1: Create a Client
+
+<Steps>
+  <Step title="Create Client via API">
+    ```bash
+    curl -X POST http://localhost:8080/api/v1/clientes \
+      -H "Content-Type: application/json" \
+      -d '{
+        "nombreCompleto": "Juan Pérez García",
+        "dni": "12345678",
+        "telefono": "987654321",
+        "correo": "juan.perez@example.com"
+      }'
+    ```
+
+    **Response:**
+    ```json
+    {
+      "id": 1,
+      "nombreCompleto": "Juan Pérez García",
+      "dni": "12345678",
+      "telefono": "987654321",
+      "correo": "juan.perez@example.com"
+    }
+    ```
+
+    <Note>
+      Save the `id` field - you'll need it as `remitenteId` when creating shipments.
+    </Note>
+  </Step>
+
+  <Step title="Client Validation Rules">
+    | Field | Type | Required | Validation |
+    |-------|------|----------|------------|
+    | `nombreCompleto` | String | Yes | 1-100 characters |
+    | `dni` | String | Yes | Exactly 8 digits, unique |
+    | `telefono` | String | Yes | Exactly 9 digits |
+    | `correo` | String | Yes | Valid email format |
+  </Step>
+
+  <Step title="List Existing Clients">
+    ```bash
+    curl http://localhost:8080/api/v1/clientes
+    ```
+
+    Search by name/dni/email:
+    ```bash
+    curl http://localhost:8080/api/v1/clientes/buscar?keyword=juan
+    ```
+  </Step>
+</Steps>
+
+## Step 2: Verify Branches Exist
+
+<Steps>
+  <Step title="List All Branches">
+    ```bash
+    curl http://localhost:8080/api/v1/sucursales
+    ```
+
+    **Response:**
+    ```json
+    [
+      {
+        "id": 1,
+        "nombre": "Sucursal Centro Cajamarca",
+        "ciudad": "Cajamarca",
+        "direccion": "Jr. Amalia Puga 450",
+        "telefono": "076345678"
+      },
+      {
+        "id": 2,
+        "nombre": "Sucursal Miraflores Lima",
+        "ciudad": "Lima",
+        "direccion": "Av. Larco 1234",
+        "telefono": "014567890"
+      }
+    ]
+    ```
+  </Step>
+
+  <Step title="Create Branch if Needed">
+    ```bash
+    curl -X POST http://localhost:8080/api/v1/sucursales \
+      -H "Content-Type: application/json" \
+      -d '{
+        "nombre": "Sucursal Centro Cusco",
+        "ciudad": "Cusco",
+        "direccion": "Av. El Sol 456",
+        "telefono": "084234567"
+      }'
+    ```
+  </Step>
+</Steps>
+
+## Step 3: Create a Shipment
+
+### Basic Shipment
+
+```bash
+curl -X POST http://localhost:8080/api/v1/envios \
+  -H "Content-Type: application/json" \
+  -d '{
+    "remitenteId": 1,
+    "encomienda": {
+      "descripcion": "Laptop Dell XPS 15",
+      "peso": 2.5,
+      "dimensiones": "40x30x10"
+    },
+    "nombreDestinatario": "María García",
+    "dniDestinatario": "87654321",
+    "sucursalOrigenId": 1,
+    "sucursalDestinoId": 2,
+    "precio": 35.50
+  }'
+```
+
+**Successful Response:**
+```json
+{
+  "id": 1,
+  "codigoSeguimiento": "ENV-1710334200000",
+  "remitente": {
+    "id": 1,
+    "nombreCompleto": "Juan Pérez García",
+    "dni": "12345678"
+  },
+  "encomienda": {
+    "id": 1,
+    "descripcion": "Laptop Dell XPS 15",
+    "peso": 2.5,
+    "dimensiones": "40x30x10"
+  },
+  "nombreDestinatario": "María García",
+  "dniDestinatario": "87654321",
+  "sucursalOrigen": {
+    "id": 1,
+    "nombre": "Sucursal Centro Cajamarca",
+    "ciudad": "Cajamarca"
+  },
+  "sucursalDestino": {
+    "id": 2,
+    "nombre": "Sucursal Miraflores Lima",
+    "ciudad": "Lima"
+  },
+  "precio": 35.5,
+  "estado": "PENDIENTE",
+  "fechaEnvio": "2026-03-09T10:30:00",
+  "fechaEntrega": null,
+  "placa": null,
+  "contrasenaEntrega": "4521"
+}
+```
+
+<Note>
+  **Auto-generated fields:**
+  - `codigoSeguimiento`: Unique tracking code (format: `ENV-{timestamp}`)
+  - `contrasenaEntrega`: 4-digit password for delivery (share with recipient)
+  - `estado`: Always starts as `PENDIENTE`
+  - `fechaEnvio`: Current timestamp (or specified date)
+</Note>
+
+### Request DTO Structure
+
+The `CrearEnvioRequestDTO` (svc-envio-encomienda/src/main/java/org/jchilon3mas/springcloud/svc/envio/encomienda/dtos/CrearEnvioRequestDTO.java:12) defines the request structure:
+
+```java
+public class CrearEnvioRequestDTO {
+    private Long          remitenteId;
+    private EncomiendaDTO encomienda;
+    private String        nombreDestinatario;
+    private String        dniDestinatario;
+    private Long          sucursalOrigenId;
+    private Long          sucursalDestinoId;
+    private Double        precio;
+    private String        contrasenaEntrega;  // Optional: auto-generated if null
+    private LocalDate     fechaEnvio;         // Optional: uses current date if null
+}
+```
+
+### Validation Rules
+
+<AccordionGroup>
+  <Accordion title="Sender Validation">
+    | Field | Rule | Error Message |
+    |-------|------|---------------|
+    | `remitenteId` | Must exist in database | "Remitente no encontrado" |
+  </Accordion>
+
+  <Accordion title="Package Validation">
+    | Field | Type | Required | Validation |
+    |-------|------|----------|------------|
+    | `descripcion` | String | Yes | 1-500 characters |
+    | `peso` | Double | Yes | Must be > 0 |
+    | `dimensiones` | String | Yes | Format: `LxWxH` (e.g., "40x30x10") |
+
+    **Code Reference:** (svc-envio-encomienda/src/main/java/org/jchilon3mas/springcloud/svc/envio/encomienda/servicios/Impl/EnvioServiceImpl.java:89)
+
+    ```java
+    if (requestDTO.getEncomienda() == null || requestDTO.getEncomienda().getPeso() <= 0)
+        throw new IllegalArgumentException("Datos de encomienda inválidos o peso debe ser mayor a 0");
+    ```
+  </Accordion>
+
+  <Accordion title="Recipient Validation">
+    | Field | Type | Required | Validation |
+    |-------|------|----------|------------|
+    | `nombreDestinatario` | String | Yes | 1-100 characters |
+    | `dniDestinatario` | String | Yes | Exactly 8 digits |
+
+    **Code Reference:** (svc-envio-encomienda/src/main/java/org/jchilon3mas/springcloud/svc/envio/encomienda/servicios/Impl/EnvioServiceImpl.java:92)
+
+    ```java
+    if (requestDTO.getDniDestinatario() == null || !requestDTO.getDniDestinatario().matches("\\d{8}"))
+        throw new IllegalArgumentException("El DNI debe tener 8 dígitos");
+    ```
+  </Accordion>
+
+  <Accordion title="Branch Validation">
+    | Field | Rule | Error Message |
+    |-------|------|---------------|
+    | `sucursalOrigenId` | Must exist | "Sucursal origen no encontrada" |
+    | `sucursalDestinoId` | Must exist | "Sucursal destino no encontrada" |
+    | Origin ≠ Destination | Must be different | "La sucursal de origen y destino no pueden ser iguales" |
+
+    **Code Reference:** (svc-envio-encomienda/src/main/java/org/jchilon3mas/springcloud/svc/envio/encomienda/servicios/Impl/EnvioServiceImpl.java:86)
+
+    ```java
+    if (origen.getId().equals(destino.getId()))
+        throw new IllegalArgumentException("La sucursal de origen y destino no pueden ser iguales");
+    ```
+  </Accordion>
+
+  <Accordion title="Password & Price">
+    | Field | Type | Required | Validation |
+    |-------|------|----------|------------|
+    | `precio` | Double | Yes | Must be > 0 |
+    | `contrasenaEntrega` | String | No | 4 digits (auto-generated if null) |
+
+    **Code Reference:** (svc-envio-encomienda/src/main/java/org/jchilon3mas/springcloud/svc/envio/encomienda/servicios/Impl/EnvioServiceImpl.java:95)
+
+    ```java
+    String contrasena = (requestDTO.getContrasenaEntrega() == null || requestDTO.getContrasenaEntrega().isEmpty())
+            ? generarContrasena4Digitos()
+            : requestDTO.getContrasenaEntrega();
+
+    if (!contrasena.matches("\\d{4}"))
+        throw new IllegalArgumentException("La contraseña debe ser de 4 dígitos numéricos");
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Advanced Examples
+
+### Custom Delivery Password
+
+```bash
+curl -X POST http://localhost:8080/api/v1/envios \
+  -H "Content-Type: application/json" \
+  -d '{
+    "remitenteId": 1,
+    "encomienda": {
+      "descripcion": "Documentos legales",
+      "peso": 0.5,
+      "dimensiones": "30x20x5"
+    },
+    "nombreDestinatario": "Carlos Ruiz",
+    "dniDestinatario": "11223344",
+    "sucursalOrigenId": 1,
+    "sucursalDestinoId": 2,
+    "precio": 15.00,
+    "contrasenaEntrega": "9876"
+  }'
+```
+
+### Heavy Package (> 20kg)
+
+```bash
+curl -X POST http://localhost:8080/api/v1/envios \
+  -H "Content-Type: application/json" \
+  -d '{
+    "remitenteId": 1,
+    "encomienda": {
+      "descripcion": "Electrodomésticos - Refrigeradora",
+      "peso": 45.0,
+      "dimensiones": "180x70x70"
+    },
+    "nombreDestinatario": "Luis Torres",
+    "dniDestinatario": "55667788",
+    "sucursalOrigenId": 1,
+    "sucursalDestinoId": 3,
+    "precio": 150.00
+  }'
+```
+
+<Note>
+  Future enhancement: Packages > 20kg could be automatically classified as `enc:EnvioPesado` in the semantic graph using OWL reasoning.
+</Note>
+
+### Fragile Items
+
+```bash
+curl -X POST http://localhost:8080/api/v1/envios \
+  -H "Content-Type: application/json" \
+  -d '{
+    "remitenteId": 2,
+    "encomienda": {
+      "descripcion": "Vajilla de cristal - FRÁGIL",
+      "peso": 8.5,
+      "dimensiones": "50x40x30"
+    },
+    "nombreDestinatario": "Patricia Vega",
+    "dniDestinatario": "99887766",
+    "sucursalOrigenId": 2,
+    "sucursalDestinoId": 1,
+    "precio": 65.00
+  }'
+```
+
+### Bulk Creation
+
+Create multiple shipments in a script:
+
+```bash
+#!/bin/bash
+
+for i in {1..10}; do
+  curl -X POST http://localhost:8080/api/v1/envios \
+    -H "Content-Type: application/json" \
+    -d "{
+      \"remitenteId\": 1,
+      \"encomienda\": {
+        \"descripcion\": \"Paquete de prueba $i\",
+        \"peso\": $((RANDOM % 20 + 1)),
+        \"dimensiones\": \"30x20x10\"
+      },
+      \"nombreDestinatario\": \"Cliente $i\",
+      \"dniDestinatario\": \"1234567$i\",
+      \"sucursalOrigenId\": 1,
+      \"sucursalDestinoId\": 2,
+      \"precio\": 25.00
+    }"
+  sleep 1
+done
+```
+
+## What Happens Behind the Scenes
+
+<Steps>
+  <Step title="Request Received">
+    `EnvioController.registrarNuevoEnvio()` (svc-envio-encomienda/src/main/java/org/jchilon3mas/springcloud/svc/envio/encomienda/web/EnvioController.java:41) receives the request:
+
+    ```java
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public EnvioDTO registrarNuevoEnvio(@RequestBody CrearEnvioRequestDTO requestDTO)
+            throws ClienteNotFoundException {
+        return envioService.registrarEnvio(requestDTO);
+    }
+    ```
+  </Step>
+
+  <Step title="Validation & Entity Creation">
+    `EnvioServiceImpl.registrarEnvio()` (svc-envio-encomienda/src/main/java/org/jchilon3mas/springcloud/svc/envio/encomienda/servicios/Impl/EnvioServiceImpl.java:74):
+
+    1. Validates client exists
+    2. Validates both branches exist
+    3. Validates origin ≠ destination
+    4. Validates package weight > 0
+    5. Validates recipient DNI format
+    6. Generates delivery password if not provided
+    7. Creates `Envio` entity with initial state `PENDIENTE`
+  </Step>
+
+  <Step title="Auto-generated Fields">
+    ```java
+    // Tracking code: ENV-{timestamp}
+    @PrePersist
+    public void generarCodigoSeguimiento() {
+        if (this.codigoSeguimiento == null) {
+            this.codigoSeguimiento = "ENV-" + System.currentTimeMillis();
+        }
+    }
+    ```
+
+    From `Envio.java` (svc-envio-encomienda/src/main/java/org/jchilon3mas/springcloud/svc/envio/encomienda/entidades/Envio.java:67)
+  </Step>
+
+  <Step title="Save to MySQL">
+    ```java
+    Envio envioGuardado = envioRepository.save(nuevoEnvio);
+    ```
+
+    Creates records in:
+    - `envios` table
+    - `encomiendas` table (via cascade)
+  </Step>
+
+  <Step title="Semantic Synchronization">
+    ```java
+    integracionSemanticaService.notificarNuevoEnvio(envioGuardado);
+    ```
+
+    Sends HTTP POST to semantic service at `http://localhost:8081/api/v1/grafo/sincronizar-envio`
+
+    Creates RDF triples:
+    ```turtle
+    <http://www.encomiendas.com/cliente/12345678> a enc:Cliente ;
+        enc:tieneNombre "Juan Pérez García" ;
+        enc:realizaEnvio <http://www.encomiendas.com/envio/ENV-1710334200000> .
+
+    <http://www.encomiendas.com/envio/ENV-1710334200000> a enc:Envio ;
+        enc:codigoSeguimiento "ENV-1710334200000" ;
+        enc:tieneEstado "PENDIENTE" ;
+        enc:contienePaquete "Laptop Dell XPS 15" ;
+        enc:tienePesoKg "2.5"^^xsd:decimal .
+    ```
+  </Step>
+
+  <Step title="Return Response">
+    ```java
+    return mapper.deEnvio(envioGuardado);
+    ```
+
+    Converts entity to DTO with all relationships populated.
+  </Step>
+</Steps>
+
+## Error Handling
+
+### Common Errors
+
+<AccordionGroup>
+  <Accordion title="404 - Client Not Found">
+    ```json
+    {
+      "timestamp": "2026-03-09T10:30:00",
+      "status": 404,
+      "error": "Not Found",
+      "message": "Remitente no encontrado",
+      "path": "/api/v1/envios"
+    }
+    ```
+
+    **Solution:** Verify client ID exists:
+    ```bash
+    curl http://localhost:8080/api/v1/clientes/1
+    ```
+  </Accordion>
+
+  <Accordion title="400 - Invalid DNI Format">
+    ```json
+    {
+      "status": 400,
+      "error": "Bad Request",
+      "message": "El DNI debe tener 8 dígitos"
+    }
+    ```
+
+    **Solution:** Ensure `dniDestinatario` is exactly 8 digits:
+    ```json
+    "dniDestinatario": "87654321"  // ✅ Correct
+    "dniDestinatario": "8765432"   // ❌ Wrong (7 digits)
+    ```
+  </Accordion>
+
+  <Accordion title="400 - Same Origin and Destination">
+    ```json
+    {
+      "status": 400,
+      "message": "La sucursal de origen y destino no pueden ser iguales"
+    }
+    ```
+
+    **Solution:** Use different branch IDs:
+    ```json
+    "sucursalOrigenId": 1,
+    "sucursalDestinoId": 2  // Must be different
+    ```
+  </Accordion>
+
+  <Accordion title="400 - Invalid Weight">
+    ```json
+    {
+      "status": 400,
+      "message": "Datos de encomienda inválidos o peso debe ser mayor a 0"
+    }
+    ```
+
+    **Solution:**
+    ```json
+    "peso": 2.5   // ✅ Correct
+    "peso": 0     // ❌ Wrong
+    "peso": -5    // ❌ Wrong
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Query Created Shipments
+
+### REST API
+
+```bash
+# Get all shipments
+curl http://localhost:8080/api/v1/envios
+
+# Get specific shipment
+curl http://localhost:8080/api/v1/envios/1
+
+# Track by code (public endpoint)
+curl http://localhost:8080/api/v1/envios/seguimiento/ENV-1710334200000
+
+# Filter by state
+curl http://localhost:8080/api/v1/envios/estado/PENDIENTE?page=0&size=10
+
+# Client's shipment history
+curl http://localhost:8080/api/v1/envios/mis-envios?correo=juan.perez@example.com
+```
+
+### Semantic Search
+
+```bash
+# Natural language queries
+curl -X GET "http://localhost:8081/api/v1/grafo/buscar?texto=envios+pendientes"
+
+curl -X GET "http://localhost:8081/api/v1/grafo/buscar?texto=envios+de+Juan"
+
+curl -X GET "http://localhost:8081/api/v1/grafo/buscar?texto=paquetes+a+Lima"
+
+curl -X GET "http://localhost:8081/api/v1/grafo/buscar?texto=entre+2+y+5+kg"
+```
+
+## Integration Tips
+
+### Frontend Form Validation
+
+```javascript
+const createShipment = async (formData) => {
+  // Client-side validation
+  if (!/^\d{8}$/.test(formData.dniDestinatario)) {
+    throw new Error('DNI debe tener 8 dígitos');
+  }
+  
+  if (formData.sucursalOrigenId === formData.sucursalDestinoId) {
+    throw new Error('Origen y destino deben ser diferentes');
+  }
+  
+  if (formData.encomienda.peso <= 0) {
+    throw new Error('Peso debe ser mayor a 0');
+  }
+  
+  // Send request
+  const response = await fetch('http://localhost:8080/api/v1/envios', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(formData)
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message);
+  }
+  
+  return await response.json();
+};
+```
+
+### Python Integration
+
+```python
+import requests
+
+def create_shipment(sender_id, package, recipient, origin_id, dest_id, price):
+    payload = {
+        "remitenteId": sender_id,
+        "encomienda": package,
+        "nombreDestinatario": recipient["name"],
+        "dniDestinatario": recipient["dni"],
+        "sucursalOrigenId": origin_id,
+        "sucursalDestinoId": dest_id,
+        "precio": price
+    }
+    
+    response = requests.post(
+        "http://localhost:8080/api/v1/envios",
+        json=payload
+    )
+    
+    response.raise_for_status()
+    return response.json()
+
+# Usage
+shipment = create_shipment(
+    sender_id=1,
+    package={
+        "descripcion": "Laptop",
+        "peso": 2.5,
+        "dimensiones": "40x30x10"
+    },
+    recipient={
+        "name": "María García",
+        "dni": "87654321"
+    },
+    origin_id=1,
+    dest_id=2,
+    price=35.50
+)
+
+print(f"Tracking code: {shipment['codigoSeguimiento']}")
+print(f"Delivery password: {shipment['contrasenaEntrega']}")
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="State Transitions" icon="rotate" href="/concepts/shipment-lifecycle">
+    Learn how to update shipment states
+  </Card>
+  <Card title="Semantic Search" icon="magnifying-glass" href="/guides/semantic-search">
+    Query shipments naturally
+  </Card>
+  <Card title="SPARQL Queries" icon="code" href="/guides/sparql-queries">
+    Write custom queries
+  </Card>
+  <Card title="Setup Guide" icon="wrench" href="/guides/setup">
+    Configure the system
+  </Card>
+</CardGroup>

@@ -1,0 +1,629 @@
+---
+title: 'OWL Ontology Reference'
+description: 'Complete reference for the encomiendas.ttl semantic web ontology'
+---
+
+# OWL Ontology Reference
+
+This page documents the complete OWL ontology for the semantic web component of the shipping system. The ontology is defined in `svc-web-semantica/src/main/resources/encomiendas.ttl` and provides RDF/OWL representations of shipment data.
+
+## Ontology Metadata
+
+**IRI**: `http://www.encomiendas.com/ontologia#`  
+**Prefix**: `enc:`  
+**Label**: "Ontología de Envíos y Encomiendas" (Spanish)  
+**Description**: OWL ontology for managing shipments and packages between branch offices  
+**Source**: svc-web-semantica/src/main/resources/encomiendas.ttl:10
+
+### Namespaces
+
+```turtle
+@prefix enc:  <http://www.encomiendas.com/ontologia#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+```
+
+---
+
+## OWL Classes
+
+### Core Classes
+
+<Accordion title="enc:Cliente">
+  **Type**: `owl:Class`  
+  **Label**: "Cliente" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:18
+  
+  **Description**: Natural person acting as sender of a shipment.
+  
+  **Disjoint With**: `enc:Envio`, `enc:Sucursal`, `enc:Encomienda`
+  
+  <Note>
+    A resource cannot be both a Cliente and any other main class simultaneously.
+  </Note>
+</Accordion>
+
+<Accordion title="enc:Envio">
+  **Type**: `owl:Class`  
+  **Label**: "Envío" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:22
+  
+  **Description**: Transport of a package from origin branch to destination branch.
+  
+  **Disjoint With**: `enc:Cliente`, `enc:Sucursal`, `enc:Encomienda`
+  
+  **Subclasses**:
+  - `enc:EnvioUrgente`
+  - `enc:EnvioFragil`
+  - `enc:EnvioPesado`
+</Accordion>
+
+<Accordion title="enc:Encomienda">
+  **Type**: `owl:Class`  
+  **Label**: "Encomienda" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:26
+  
+  **Description**: Physical package or parcel that is part of a shipment.
+  
+  **Disjoint With**: `enc:Cliente`, `enc:Envio`, `enc:Sucursal`
+</Accordion>
+
+<Accordion title="enc:Sucursal">
+  **Type**: `owl:Class`  
+  **Label**: "Sucursal" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:30
+  
+  **Description**: Physical branch office where packages are received and delivered.
+  
+  **Disjoint With**: `enc:Cliente`, `enc:Envio`, `enc:Encomienda`
+</Accordion>
+
+### Envio Subclasses
+
+<Accordion title="enc:EnvioUrgente">
+  **Type**: `owl:Class`  
+  **Label**: "Envío Urgente" (es)  
+  **Subclass Of**: `enc:Envio`  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:35
+  
+  **Description**: Shipment with immediate delivery priority.
+  
+  <Warning>
+    Use this classification for time-sensitive packages requiring expedited handling.
+  </Warning>
+</Accordion>
+
+<Accordion title="enc:EnvioFragil">
+  **Type**: `owl:Class`  
+  **Label**: "Envío Frágil" (es)  
+  **Subclass Of**: `enc:Envio`  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:40
+  
+  **Description**: Shipment containing delicate objects requiring special handling.
+  
+  <Note>
+    Mark shipments as fragile to ensure proper care during transport.
+  </Note>
+</Accordion>
+
+<Accordion title="enc:EnvioPesado">
+  **Type**: `owl:Class`  
+  **Label**: "Envío Pesado" (es)  
+  **Subclass Of**: `enc:Envio`  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:45
+  
+  **Description**: Shipment with weight exceeding 20kg, requiring special transport.
+  
+  <Warning>
+    Heavy shipments may require additional handling equipment and special vehicles.
+  </Warning>
+</Accordion>
+
+---
+
+## Object Properties
+
+Object properties define relationships between resources.
+
+<Accordion title="enc:realizaEnvio">
+  **Type**: `owl:ObjectProperty`  
+  **Label**: "realiza envío" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:62
+  
+  **Domain**: `enc:Cliente`  
+  **Range**: `enc:Envio`  
+  **Inverse Of**: `enc:esRealizadoPor`
+  
+  **Description**: Relationship between a sending customer and their shipment.
+  
+  **Usage**:
+  ```turtle
+  :cliente001 enc:realizaEnvio :envio123 .
+  ```
+</Accordion>
+
+<Accordion title="enc:esRealizadoPor">
+  **Type**: `owl:ObjectProperty`  
+  **Label**: "es realizado por" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:68
+  
+  **Domain**: `enc:Envio`  
+  **Range**: `enc:Cliente`  
+  **Inverse Of**: `enc:realizaEnvio`
+  
+  **Description**: Inferred inverse - the shipment belongs to a sending customer.
+  
+  <Note>
+    This property is automatically inferred by OWL reasoners when `enc:realizaEnvio` is asserted.
+  </Note>
+</Accordion>
+
+---
+
+## Datatype Properties
+
+Datatype properties define literal attributes of resources.
+
+### Cliente Properties
+
+<Accordion title="enc:tieneNombre">
+  **Type**: `owl:DatatypeProperty`  
+  **Label**: "tiene nombre" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:79
+  
+  **Domain**: `enc:Cliente`  
+  **Range**: `xsd:string`
+  
+  **Description**: Full name of the customer/sender.
+  
+  **Example**:
+  ```turtle
+  :cliente001 enc:tieneNombre "Juan Pérez García" .
+  ```
+</Accordion>
+
+<Accordion title="enc:tieneDni">
+  **Type**: `owl:DatatypeProperty`, `owl:FunctionalProperty`  
+  **Label**: "tiene DNI" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:85
+  
+  **Domain**: `enc:Cliente`  
+  **Range**: `xsd:string`
+  
+  **Description**: National Identity Document number (8 digits, unique).
+  
+  <Warning>
+    This is a **Functional Property** - each Cliente can have only ONE DNI value.
+  </Warning>
+  
+  **Example**:
+  ```turtle
+  :cliente001 enc:tieneDni "12345678" .
+  ```
+</Accordion>
+
+<Accordion title="enc:tieneTelefono">
+  **Type**: `owl:DatatypeProperty`  
+  **Label**: "tiene teléfono" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:91
+  
+  **Domain**: `enc:Cliente`  
+  **Range**: `xsd:string`
+  
+  **Description**: Customer contact phone number (9 digits).
+  
+  **Example**:
+  ```turtle
+  :cliente001 enc:tieneTelefono "987654321" .
+  ```
+</Accordion>
+
+<Accordion title="enc:tieneCorreo">
+  **Type**: `owl:DatatypeProperty`  
+  **Label**: "tiene correo" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:97
+  
+  **Domain**: `enc:Cliente`  
+  **Range**: `xsd:string`
+  
+  **Description**: Customer email address.
+  
+  **Example**:
+  ```turtle
+  :cliente001 enc:tieneCorreo "juan.perez@example.com" .
+  ```
+</Accordion>
+
+### Envio Properties - Core
+
+<Accordion title="enc:codigoSeguimiento">
+  **Type**: `owl:DatatypeProperty`, `owl:FunctionalProperty`  
+  **Label**: "código de seguimiento" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:107
+  
+  **Domain**: `enc:Envio`  
+  **Range**: `xsd:string`
+  
+  **Description**: Unique tracking code. Format: ENV-{timestamp}.
+  
+  <Note>
+    Functional property - one shipment has exactly one tracking code.
+  </Note>
+  
+  **Example**:
+  ```turtle
+  :envio123 enc:codigoSeguimiento "ENV-1678901234567" .
+  ```
+</Accordion>
+
+<Accordion title="enc:tieneEstado">
+  **Type**: `owl:DatatypeProperty`, `owl:FunctionalProperty`  
+  **Label**: "tiene estado" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:113
+  
+  **Domain**: `enc:Envio`  
+  **Range**: `xsd:string`
+  
+  **Description**: Current shipment status.
+  
+  **Valid Values**:
+  - `PENDIENTE` - Registered, awaiting dispatch
+  - `EN_TRANSITO` - In transit to destination
+  - `DISPONIBLE` - Available for pickup
+  - `ENTREGADO` - Delivered
+  - `CANCELADO` - Cancelled
+  
+  **Example**:
+  ```turtle
+  :envio123 enc:tieneEstado "EN_TRANSITO" .
+  ```
+</Accordion>
+
+<Accordion title="enc:fechaEnvio">
+  **Type**: `owl:DatatypeProperty`  
+  **Label**: "fecha de envío" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:119
+  
+  **Domain**: `enc:Envio`  
+  **Range**: `xsd:string`
+  
+  **Description**: Date and time when shipment was registered.
+  
+  **Example**:
+  ```turtle
+  :envio123 enc:fechaEnvio "2026-03-09T10:30:00" .
+  ```
+</Accordion>
+
+<Accordion title="enc:fechaEntrega">
+  **Type**: `owl:DatatypeProperty`  
+  **Label**: "fecha de entrega" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:125
+  
+  **Domain**: `enc:Envio`  
+  **Range**: `xsd:string`
+  
+  **Description**: Date and time when package was delivered to recipient.
+  
+  **Example**:
+  ```turtle
+  :envio123 enc:fechaEntrega "2026-03-11T14:20:00" .
+  ```
+</Accordion>
+
+<Accordion title="enc:tienePrecio">
+  **Type**: `owl:DatatypeProperty`  
+  **Label**: "tiene precio" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:131
+  
+  **Domain**: `enc:Envio`  
+  **Range**: `xsd:string`
+  
+  **Description**: Total cost of shipping service in soles (S/).
+  
+  <Note>
+    Currently stored as string. Consider using `xsd:decimal` for calculations.
+  </Note>
+  
+  **Example**:
+  ```turtle
+  :envio123 enc:tienePrecio "45.50" .
+  ```
+</Accordion>
+
+### Envio Properties - Transport
+
+<Accordion title="enc:placaVehiculo">
+  **Type**: `owl:DatatypeProperty`  
+  **Label**: "placa de vehículo" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:137
+  
+  **Domain**: `enc:Envio`  
+  **Range**: `xsd:string`
+  
+  **Description**: License plate of vehicle assigned to transport the shipment.
+  
+  **Example**:
+  ```turtle
+  :envio123 enc:placaVehiculo "ABC-123" .
+  ```
+</Accordion>
+
+<Accordion title="enc:transportadoPor">
+  **Type**: `owl:DatatypeProperty`  
+  **Label**: "transportado por" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:143
+  
+  **Domain**: `enc:Envio`  
+  **Range**: `xsd:string`
+  
+  **Description**: Name of driver or company responsible for transport.
+  
+  **Example**:
+  ```turtle
+  :envio123 enc:transportadoPor "Transportes Rápidos SAC" .
+  ```
+</Accordion>
+
+### Envio Properties - Recipient
+
+<Accordion title="enc:nombreDestinatario">
+  **Type**: `owl:DatatypeProperty`  
+  **Label**: "nombre del destinatario" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:150
+  
+  **Domain**: `enc:Envio`  
+  **Range**: `xsd:string`
+  
+  **Description**: Full name of person who will receive the package.
+  
+  **Example**:
+  ```turtle
+  :envio123 enc:nombreDestinatario "María López Ruiz" .
+  ```
+</Accordion>
+
+<Accordion title="enc:dniDestinatario">
+  **Type**: `owl:DatatypeProperty`  
+  **Label**: "DNI del destinatario" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:156
+  
+  **Domain**: `enc:Envio`  
+  **Range**: `xsd:string`
+  
+  **Description**: Identity document of person picking up package.
+  
+  **Example**:
+  ```turtle
+  :envio123 enc:dniDestinatario "87654321" .
+  ```
+</Accordion>
+
+### Envio Properties - Locations
+
+<Accordion title="enc:origenEn">
+  **Type**: `owl:DatatypeProperty`  
+  **Label**: "ciudad de origen" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:163
+  
+  **Domain**: `enc:Envio`  
+  **Range**: `xsd:string`
+  
+  **Description**: City from which shipment is dispatched.
+  
+  **Example**:
+  ```turtle
+  :envio123 enc:origenEn "Lima" .
+  ```
+</Accordion>
+
+<Accordion title="enc:destinoEn">
+  **Type**: `owl:DatatypeProperty`  
+  **Label**: "ciudad de destino" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:169
+  
+  **Domain**: `enc:Envio`  
+  **Range**: `xsd:string`
+  
+  **Description**: City to which shipment is going.
+  
+  **Example**:
+  ```turtle
+  :envio123 enc:destinoEn "Arequipa" .
+  ```
+</Accordion>
+
+<Accordion title="enc:sucursalOrigen">
+  **Type**: `owl:DatatypeProperty`  
+  **Label**: "sucursal de origen" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:175
+  
+  **Domain**: `enc:Envio`  
+  **Range**: `xsd:string`
+  
+  **Description**: Name of branch from which shipment is dispatched.
+  
+  **Example**:
+  ```turtle
+  :envio123 enc:sucursalOrigen "Lima Centro" .
+  ```
+</Accordion>
+
+<Accordion title="enc:entregarEnSucursal">
+  **Type**: `owl:DatatypeProperty`  
+  **Label**: "sucursal de destino" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:181
+  
+  **Domain**: `enc:Envio`  
+  **Range**: `xsd:string`
+  
+  **Description**: Name of branch where recipient will pick up package.
+  
+  **Example**:
+  ```turtle
+  :envio123 enc:entregarEnSucursal "Arequipa Norte" .
+  ```
+</Accordion>
+
+### Envio Properties - Package Details
+
+<Accordion title="enc:contienePaquete">
+  **Type**: `owl:DatatypeProperty`  
+  **Label**: "contiene paquete" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:188
+  
+  **Domain**: `enc:Envio`  
+  **Range**: `xsd:string`
+  
+  **Description**: Description of package contents.
+  
+  **Example**:
+  ```turtle
+  :envio123 enc:contienePaquete "Documentos legales" .
+  ```
+</Accordion>
+
+<Accordion title="enc:tienePesoKg">
+  **Type**: `owl:DatatypeProperty`  
+  **Label**: "tiene peso (kg)" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:194
+  
+  **Domain**: `enc:Envio`  
+  **Range**: `xsd:decimal`
+  
+  **Description**: Package weight in kilograms.
+  
+  <Note>
+    This property uses `xsd:decimal` for precise numeric representation.
+  </Note>
+  
+  **Example**:
+  ```turtle
+  :envio123 enc:tienePesoKg "5.75"^^xsd:decimal .
+  ```
+</Accordion>
+
+<Accordion title="enc:tieneDimensiones">
+  **Type**: `owl:DatatypeProperty`  
+  **Label**: "tiene dimensiones" (es)  
+  **Location**: svc-web-semantica/src/main/resources/encomiendas.ttl:200
+  
+  **Domain**: `enc:Envio`  
+  **Range**: `xsd:string`
+  
+  **Description**: Package dimensions in format LxWxH (cm). Example: "10x20x30".
+  
+  **Example**:
+  ```turtle
+  :envio123 enc:tieneDimensiones "25x35x15" .
+  ```
+</Accordion>
+
+---
+
+## Complete Example
+
+Here's a complete RDF representation of a shipment:
+
+```turtle
+@prefix enc: <http://www.encomiendas.com/ontologia#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Customer (Sender)
+:cliente001 a enc:Cliente ;
+    enc:tieneNombre "Juan Pérez García" ;
+    enc:tieneDni "12345678" ;
+    enc:tieneTelefono "987654321" ;
+    enc:tieneCorreo "juan.perez@example.com" ;
+    enc:realizaEnvio :envio123 .
+
+# Shipment
+:envio123 a enc:EnvioFragil ;
+    enc:codigoSeguimiento "ENV-1678901234567" ;
+    enc:tieneEstado "EN_TRANSITO" ;
+    enc:fechaEnvio "2026-03-09T10:30:00" ;
+    enc:tienePrecio "45.50" ;
+    enc:nombreDestinatario "María López Ruiz" ;
+    enc:dniDestinatario "87654321" ;
+    enc:origenEn "Lima" ;
+    enc:destinoEn "Arequipa" ;
+    enc:sucursalOrigen "Lima Centro" ;
+    enc:entregarEnSucursal "Arequipa Norte" ;
+    enc:contienePaquete "Artículos de vidrio" ;
+    enc:tienePesoKg "3.5"^^xsd:decimal ;
+    enc:tieneDimensiones "20x30x15" ;
+    enc:placaVehiculo "ABC-123" ;
+    enc:esRealizadoPor :cliente001 .
+```
+
+---
+
+## Disjointness Axioms
+
+The ontology declares the following classes as mutually disjoint:
+
+```turtle
+enc:Cliente   owl:disjointWith enc:Envio .
+enc:Cliente   owl:disjointWith enc:Sucursal .
+enc:Cliente   owl:disjointWith enc:Encomienda .
+enc:Envio     owl:disjointWith enc:Sucursal .
+enc:Envio     owl:disjointWith enc:Encomienda .
+enc:Sucursal  owl:disjointWith enc:Encomienda .
+```
+
+<Warning>
+  OWL reasoners will detect inconsistencies if a resource is asserted to be an instance of two disjoint classes.
+</Warning>
+
+---
+
+## Usage in SPARQL Queries
+
+Example queries using this ontology:
+
+### Find all shipments by a customer
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+
+SELECT ?envio ?codigo ?estado
+WHERE {
+  ?cliente enc:tieneDni "12345678" ;
+           enc:realizaEnvio ?envio .
+  ?envio enc:codigoSeguimiento ?codigo ;
+         enc:tieneEstado ?estado .
+}
+```
+
+### Find all urgent shipments in transit
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+
+SELECT ?envio ?codigo ?destino
+WHERE {
+  ?envio a enc:EnvioUrgente ;
+         enc:tieneEstado "EN_TRANSITO" ;
+         enc:codigoSeguimiento ?codigo ;
+         enc:destinoEn ?destino .
+}
+```
+
+### Find heavy shipments (>20kg)
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?envio ?peso
+WHERE {
+  ?envio enc:tienePesoKg ?peso .
+  FILTER (?peso > "20.0"^^xsd:decimal)
+}
+```
+
+<Note>
+  The semantic web service exposes a SPARQL endpoint at the `/api/v1/grafo` path for querying the RDF graph.
+</Note>

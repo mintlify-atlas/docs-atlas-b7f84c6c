@@ -1,0 +1,91 @@
+---
+title: 'Client API Overview'
+description: 'Overview of client management endpoints'
+---
+
+## Base URL
+
+All client endpoints are available at:
+
+```
+http://localhost:8080/api/v1/clientes
+```
+
+## Available Endpoints
+
+The Client Management Service provides functionality for managing clients and viewing their shipment history:
+
+### Client Operations
+- **GET /api/v1/clientes** - List all clients
+- **GET /api/v1/clientes/{id}** - Get client by ID
+- **POST /api/v1/clientes** - Create or update a client
+- **GET /api/v1/clientes/search** - Search clients by keyword
+
+### Client Shipment History
+- **GET /api/v1/clientes/{clienteId}/envios** - Get paginated shipment history for a client
+- **GET /api/v1/envios/mis-envios** - Get shipment history by email (public endpoint)
+
+## Client Object Structure
+
+Clients are represented with the following fields:
+
+```json
+{
+  "id": 1,
+  "dni": "12345678",
+  "nombreCompleto": "María García",
+  "correo": "maria.garcia@email.com",
+  "telefono": "987654321"
+}
+```
+
+<ParamField body="id" type="number">
+  Unique client identifier (auto-generated)
+</ParamField>
+
+<ParamField body="dni" type="string">
+  National ID number (DNI)
+</ParamField>
+
+<ParamField body="nombreCompleto" type="string">
+  Client's full name
+</ParamField>
+
+<ParamField body="correo" type="string">
+  Client's email address
+</ParamField>
+
+<ParamField body="telefono" type="string">
+  Client's phone number
+</ParamField>
+
+## Client Search
+
+The search endpoint allows finding clients by any field containing the keyword:
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/clientes/search?keyword=garcia"
+```
+
+This searches across DNI, name, email, and phone fields.
+
+## Pagination
+
+Endpoints that return multiple results support pagination:
+
+<ParamField query="page" type="number" default="0">
+  Page number (zero-indexed)
+</ParamField>
+
+<ParamField query="size" type="number" default="5">
+  Number of items per page
+</ParamField>
+
+Example:
+```bash
+curl -X GET "http://localhost:8080/api/v1/clientes/1/envios?page=0&size=10"
+```
+
+<Note>
+Client data is used for shipment tracking and notifications. Ensure email addresses are valid for delivery notifications.
+</Note>

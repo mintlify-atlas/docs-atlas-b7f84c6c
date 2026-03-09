@@ -1,0 +1,138 @@
+---
+title: 'Track Shipment'
+description: 'Track a shipment using its tracking code'
+api: 'GET /api/v1/envios/seguimiento/{codigo}'
+---
+
+## Endpoint
+
+```
+GET /api/v1/envios/seguimiento/{codigo}
+```
+
+Retrieve public tracking information for a shipment using its tracking code. This endpoint returns limited information suitable for public tracking portals.
+
+## Path Parameters
+
+<ParamField path="codigo" type="string" required>
+  The unique tracking code of the shipment (e.g., "ENV-20260309-ABCD1234")
+</ParamField>
+
+## Response
+
+<ResponseField name="codigoSeguimiento" type="string">
+  Tracking code
+</ResponseField>
+
+<ResponseField name="estado" type="string">
+  Current shipment status: `REGISTRADO`, `EN_TRANSITO`, `DISPONIBLE`, `ENTREGADO`, or `CANCELADO`
+</ResponseField>
+
+<ResponseField name="fechaEnvio" type="string">
+  Date and time when the shipment was created
+</ResponseField>
+
+<ResponseField name="fechaEntrega" type="string">
+  Date and time when the shipment was delivered (null if not yet delivered)
+</ResponseField>
+
+<ResponseField name="precio" type="number">
+  Shipment price
+</ResponseField>
+
+<ResponseField name="nombreDestinatario" type="string">
+  Recipient's full name
+</ResponseField>
+
+<ResponseField name="origen" type="object">
+  Origin branch office information
+  
+  <ResponseField name="origen.codigoSucursal" type="string">
+    Branch code
+  </ResponseField>
+  
+  <ResponseField name="origen.nombreSucursal" type="string">
+    Branch name
+  </ResponseField>
+  
+  <ResponseField name="origen.ciudad" type="string">
+    City name
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="destino" type="object">
+  Destination branch office information
+</ResponseField>
+
+<ResponseField name="encomienda" type="object">
+  Package information
+  
+  <ResponseField name="encomienda.peso" type="number">
+    Package weight in kg
+  </ResponseField>
+  
+  <ResponseField name="encomienda.dimensiones" type="string">
+    Package dimensions
+  </ResponseField>
+  
+  <ResponseField name="encomienda.descripcion" type="string">
+    Package description
+  </ResponseField>
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X GET http://localhost:8080/api/v1/envios/seguimiento/ENV-20260309-ABCD1234
+```
+
+## Example Response
+
+```json
+{
+  "codigoSeguimiento": "ENV-20260309-ABCD1234",
+  "estado": "EN_TRANSITO",
+  "fechaEnvio": "2026-03-09T10:30:00",
+  "fechaEntrega": null,
+  "precio": 25.50,
+  "nombreDestinatario": "Juan Pérez",
+  "origen": {
+    "codigoSucursal": "LIM-001",
+    "nombreSucursal": "Lima Centro",
+    "ciudad": "Lima"
+  },
+  "destino": {
+    "codigoSucursal": "CUS-001",
+    "nombreSucursal": "Cusco Principal",
+    "ciudad": "Cusco"
+  },
+  "encomienda": {
+    "peso": 2.5,
+    "dimensiones": "30x40x20 cm",
+    "descripcion": "Documentos importantes"
+  }
+}
+```
+
+## Error Response
+
+If the tracking code is not found:
+
+```json
+{
+  "error": "EnvioNotFoundException",
+  "message": "Envío no encontrado con código: ENV-20260309-ABCD1234"
+}
+```
+
+<Note>
+This endpoint returns public information only. Sensitive data like sender details and delivery password are not included.
+</Note>
+
+## Shipment Status Meanings
+
+- **REGISTRADO**: Shipment has been registered and is awaiting processing
+- **EN_TRANSITO**: Shipment is in transit to the destination
+- **DISPONIBLE**: Shipment has arrived and is available for pickup
+- **ENTREGADO**: Shipment has been successfully delivered to the recipient
+- **CANCELADO**: Shipment has been cancelled

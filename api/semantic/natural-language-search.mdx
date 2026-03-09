@@ -1,0 +1,251 @@
+---
+title: 'Natural Language Search'
+description: 'Search shipments using natural language queries'
+api: 'GET /api/v1/grafo/buscar'
+---
+
+## Endpoint
+
+```
+GET /api/v1/grafo/buscar
+```
+
+Search the semantic knowledge graph using natural language queries. The system automatically converts your query into a SPARQL query and returns relevant shipment data.
+
+## Query Parameters
+
+<ParamField query="texto" type="string" required>
+  Natural language search query in Spanish. Examples:
+  - "envíos de Lima a Cusco"
+  - "paquetes entregados hoy"
+  - "envíos en tránsito"
+  - "envíos de María García"
+</ParamField>
+
+## Response
+
+Returns an array of result objects. The structure varies based on the query:
+
+<ResponseField name="[]" type="array">
+  Array of result maps with variable keys depending on the query
+  
+  Common fields include:
+  
+  <ResponseField name="envio" type="string">
+    URI of the shipment resource
+  </ResponseField>
+  
+  <ResponseField name="codigo" type="string">
+    Tracking code
+  </ResponseField>
+  
+  <ResponseField name="estado" type="string">
+    Shipment status
+  </ResponseField>
+  
+  <ResponseField name="origen" type="string">
+    Origin city
+  </ResponseField>
+  
+  <ResponseField name="destino" type="string">
+    Destination city
+  </ResponseField>
+  
+  <ResponseField name="cliente" type="string">
+    Client name
+  </ResponseField>
+  
+  <ResponseField name="precio" type="string">
+    Shipment price
+  </ResponseField>
+</ResponseField>
+
+## Example Queries
+
+### Search by Route
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/grafo/buscar?texto=envios%20de%20Lima%20a%20Cusco"
+```
+
+Response:
+
+```json
+[
+  {
+    "envio": "http://jchilon3mas.org/envio/42",
+    "codigo": "ENV-20260309-ABCD1234",
+    "estado": "EN_TRANSITO",
+    "origen": "Lima",
+    "destino": "Cusco",
+    "precio": "25.50"
+  },
+  {
+    "envio": "http://jchilon3mas.org/envio/45",
+    "codigo": "ENV-20260308-MNOP4567",
+    "estado": "DISPONIBLE",
+    "origen": "Lima",
+    "destino": "Cusco",
+    "precio": "30.00"
+  }
+]
+```
+
+### Search by Status
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/grafo/buscar?texto=envios%20entregados"
+```
+
+Response:
+
+```json
+[
+  {
+    "envio": "http://jchilon3mas.org/envio/38",
+    "codigo": "ENV-20260301-QRST8901",
+    "estado": "ENTREGADO",
+    "fechaEntrega": "2026-03-05T10:30:00"
+  },
+  {
+    "envio": "http://jchilon3mas.org/envio/40",
+    "codigo": "ENV-20260303-UVWX2345",
+    "estado": "ENTREGADO",
+    "fechaEntrega": "2026-03-07T14:15:00"
+  }
+]
+```
+
+### Search by Client
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/grafo/buscar?texto=envios%20de%20Maria%20Garcia"
+```
+
+Response:
+
+```json
+[
+  {
+    "envio": "http://jchilon3mas.org/envio/42",
+    "codigo": "ENV-20260309-ABCD1234",
+    "cliente": "María García",
+    "estado": "EN_TRANSITO",
+    "destinatario": "Juan Pérez"
+  },
+  {
+    "envio": "http://jchilon3mas.org/envio/35",
+    "codigo": "ENV-20260228-YZAB6789",
+    "cliente": "María García",
+    "estado": "ENTREGADO",
+    "destinatario": "Ana López"
+  }
+]
+```
+
+### Search by Package Characteristics
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/grafo/buscar?texto=paquetes%20mayores%20a%205%20kg"
+```
+
+Response:
+
+```json
+[
+  {
+    "envio": "http://jchilon3mas.org/envio/43",
+    "codigo": "ENV-20260310-EFGH5678",
+    "peso": "7.5",
+    "descripcion": "Equipo electrónico"
+  },
+  {
+    "envio": "http://jchilon3mas.org/envio/47",
+    "codigo": "ENV-20260311-CDEF9012",
+    "peso": "10.0",
+    "descripcion": "Libros y documentos"
+  }
+]
+```
+
+## Supported Query Types
+
+The natural language processor understands:
+
+### Location Queries
+- "envíos de [ciudad] a [ciudad]"
+- "paquetes que van a [ciudad]"
+- "envíos desde [ciudad]"
+
+### Status Queries
+- "envíos entregados"
+- "paquetes en tránsito"
+- "envíos disponibles"
+- "envíos cancelados"
+
+### Client Queries
+- "envíos de [nombre]"
+- "paquetes de [cliente]"
+
+### Time Queries
+- "envíos de hoy"
+- "paquetes entregados esta semana"
+- "envíos del mes"
+
+### Package Queries
+- "paquetes mayores a [peso] kg"
+- "envíos con [descripción]"
+
+<Note>
+Queries are processed in Spanish. The system uses natural language processing to identify entities (cities, clients, status) and relationships.
+</Note>
+
+## Query Processing
+
+1. **Text Analysis**: The query is tokenized and analyzed
+2. **Entity Recognition**: Cities, names, statuses are identified
+3. **SPARQL Generation**: A SPARQL query is generated from the analysis
+4. **Graph Query**: The query is executed on the RDF knowledge graph
+5. **Result Mapping**: RDF results are converted to JSON
+
+## Empty Results
+
+If no shipments match the query:
+
+```json
+[]
+```
+
+## Advantages Over Traditional Search
+
+### Flexibility
+
+These queries return the same results:
+- "envíos de Lima a Cusco"
+- "paquetes desde Lima hasta Cusco"
+- "transporte Lima Cusco"
+
+### Context Understanding
+
+The system understands synonyms:
+- "entregado" = "recibido" = "completado"
+- "en tránsito" = "en camino" = "transportando"
+
+### Relationship Inference
+
+The semantic graph can infer relationships:
+- "envíos de María" also finds shipments where María is the recipient
+- "paquetes a Lima" finds all shipments to any Lima branch
+
+<Warning>
+The natural language processor has limitations. For complex or precise queries, use the SPARQL endpoint instead.
+</Warning>
+
+## Performance
+
+Query response time depends on:
+- Graph size
+- Query complexity
+- Number of results
+
+Typical response time: 100-500ms for standard queries.

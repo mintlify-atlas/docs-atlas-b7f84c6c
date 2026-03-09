@@ -1,0 +1,306 @@
+---
+title: 'SPARQL Query'
+description: 'Execute custom SPARQL queries on the semantic graph'
+api: 'POST /api/v1/grafo/sparql'
+---
+
+## Endpoint
+
+```
+POST /api/v1/grafo/sparql
+```
+
+Execute custom SPARQL queries directly on the shipment knowledge graph. This endpoint provides maximum flexibility for semantic queries.
+
+## Request Body
+
+<ParamField body="query" type="string" required>
+  SPARQL query string. Must be a valid SPARQL SELECT query.
+</ParamField>
+
+## Response
+
+Returns an array of result bindings:
+
+<ResponseField name="[]" type="array">
+  Array of result objects. Keys correspond to the variables in the SELECT clause.
+</ResponseField>
+
+## Ontology Namespace
+
+The shipment ontology uses the namespace:
+
+```
+PREFIX onto: <http://jchilon3mas.org/ontologia#>
+```
+
+## Main Classes
+
+- `onto:Envio` - Shipment
+- `onto:Cliente` - Client
+- `onto:Sucursal` - Branch office
+- `onto:Encomienda` - Package
+- `onto:Vehiculo` - Vehicle
+
+## Main Properties
+
+### Shipment Properties
+- `onto:tieneCodigoSeguimiento` - Tracking code
+- `onto:tieneEstado` - Status
+- `onto:tienePrecio` - Price
+- `onto:tieneFechaEnvio` - Shipment date
+- `onto:tieneFechaEntrega` - Delivery date
+- `onto:enviadoPor` - Sent by (client)
+- `onto:destinadoA` - Addressed to
+- `onto:origen` - Origin branch
+- `onto:destino` - Destination branch
+- `onto:contieneEncomienda` - Contains package
+- `onto:transportadoEn` - Transported in (vehicle)
+
+### Client Properties
+- `onto:tieneNombre` - Name
+- `onto:tieneDNI` - DNI
+- `onto:tieneCorreo` - Email
+- `onto:tieneTelefono` - Phone
+
+### Branch Properties
+- `onto:tieneCiudad` - City
+- `onto:tieneNombreSucursal` - Branch name
+- `onto:tieneDireccion` - Address
+
+### Package Properties
+- `onto:tienePeso` - Weight
+- `onto:tieneDimensiones` - Dimensions
+- `onto:tieneDescripcion` - Description
+
+## Example Queries
+
+### List All Shipments with Status
+
+```bash
+curl -X POST http://localhost:8080/api/v1/grafo/sparql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "PREFIX onto: <http://jchilon3mas.org/ontologia#> SELECT ?envio ?codigo ?estado WHERE { ?envio a onto:Envio . ?envio onto:tieneCodigoSeguimiento ?codigo . ?envio onto:tieneEstado ?estado . }"
+  }'
+```
+
+Response:
+
+```json
+[
+  {
+    "envio": "http://jchilon3mas.org/envio/42",
+    "codigo": "ENV-20260309-ABCD1234",
+    "estado": "EN_TRANSITO"
+  },
+  {
+    "envio": "http://jchilon3mas.org/envio/43",
+    "codigo": "ENV-20260310-EFGH5678",
+    "estado": "DISPONIBLE"
+  }
+]
+```
+
+### Find Shipments by Route
+
+```bash
+curl -X POST http://localhost:8080/api/v1/grafo/sparql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "PREFIX onto: <http://jchilon3mas.org/ontologia#> SELECT ?codigo ?estado ?precioWHERE { ?envio onto:tieneCodigoSeguimiento ?codigo . ?envio onto:tieneEstado ?estado . ?envio onto:tienePrecio ?precio . ?envio onto:origen ?origen . ?origen onto:tieneCiudad \"Lima\" . ?envio onto:destino ?destino . ?destino onto:tieneCiudad \"Cusco\" . }"
+  }'
+```
+
+Response:
+
+```json
+[
+  {
+    "codigo": "ENV-20260309-ABCD1234",
+    "estado": "EN_TRANSITO",
+    "precio": "25.50"
+  },
+  {
+    "codigo": "ENV-20260308-MNOP4567",
+    "estado": "DISPONIBLE",
+    "precio": "30.00"
+  }
+]
+```
+
+### Find Shipments by Client
+
+```bash
+curl -X POST http://localhost:8080/api/v1/grafo/sparql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "PREFIX onto: <http://jchilon3mas.org/ontologia#> SELECT ?codigo ?estado ?destinatario WHERE { ?envio onto:tieneCodigoSeguimiento ?codigo . ?envio onto:tieneEstado ?estado . ?envio onto:destinadoA ?destinatario . ?envio onto:enviadoPor ?cliente . ?cliente onto:tieneNombre \"María García\" . }"
+  }'
+```
+
+Response:
+
+```json
+[
+  {
+    "codigo": "ENV-20260309-ABCD1234",
+    "estado": "EN_TRANSITO",
+    "destinatario": "Juan Pérez"
+  },
+  {
+    "codigo": "ENV-20260228-YZAB6789",
+    "estado": "ENTREGADO",
+    "destinatario": "Ana López"
+  }
+]
+```
+
+### Find Heavy Packages
+
+```bash
+curl -X POST http://localhost:8080/api/v1/grafo/sparql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "PREFIX onto: <http://jchilon3mas.org/ontologia#> SELECT ?codigo ?peso ?descripcion WHERE { ?envio onto:tieneCodigoSeguimiento ?codigo . ?envio onto:contieneEncomienda ?encomienda . ?encomienda onto:tienePeso ?peso . ?encomienda onto:tieneDescripcion ?descripcion . FILTER (?peso > 5.0) }"
+  }'
+```
+
+Response:
+
+```json
+[
+  {
+    "codigo": "ENV-20260310-EFGH5678",
+    "peso": "7.5",
+    "descripcion": "Equipo electrónico"
+  },
+  {
+    "codigo": "ENV-20260311-CDEF9012",
+    "peso": "10.0",
+    "descripcion": "Libros y documentos"
+  }
+]
+```
+
+### Count Shipments by Status
+
+```bash
+curl -X POST http://localhost:8080/api/v1/grafo/sparql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "PREFIX onto: <http://jchilon3mas.org/ontologia#> SELECT ?estado (COUNT(?envio) as ?total) WHERE { ?envio onto:tieneEstado ?estado . } GROUP BY ?estado"
+  }'
+```
+
+Response:
+
+```json
+[
+  {
+    "estado": "EN_TRANSITO",
+    "total": "15"
+  },
+  {
+    "estado": "DISPONIBLE",
+    "total": "8"
+  },
+  {
+    "estado": "ENTREGADO",
+    "total": "42"
+  },
+  {
+    "estado": "REGISTRADO",
+    "total": "5"
+  }
+]
+```
+
+## SPARQL Query Structure
+
+Basic SPARQL query template:
+
+```sparql
+PREFIX onto: <http://jchilon3mas.org/ontologia#>
+
+SELECT ?variable1 ?variable2
+WHERE {
+  # Triple patterns
+  ?subject onto:property ?object .
+  
+  # Filters
+  FILTER (?variable > value)
+}
+ORDER BY ?variable1
+LIMIT 10
+```
+
+## Advanced Features
+
+### OPTIONAL Patterns
+
+Query optional properties:
+
+```sparql
+PREFIX onto: <http://jchilon3mas.org/ontologia#>
+SELECT ?codigo ?fechaEntrega
+WHERE {
+  ?envio onto:tieneCodigoSeguimiento ?codigo .
+  OPTIONAL { ?envio onto:tieneFechaEntrega ?fechaEntrega . }
+}
+```
+
+### FILTER Expressions
+
+Filter results:
+
+```sparql
+FILTER (?precio > 50.0)
+FILTER (regex(?ciudad, "Lima", "i"))
+FILTER (?estado = "EN_TRANSITO")
+```
+
+### Aggregation
+
+```sparql
+SELECT ?ciudad (AVG(?precio) as ?precioPromedio)
+WHERE {
+  ?envio onto:tienePrecio ?precio .
+  ?envio onto:destino ?sucursal .
+  ?sucursal onto:tieneCiudad ?ciudad .
+}
+GROUP BY ?ciudad
+```
+
+<Note>
+Only SELECT queries are supported. CONSTRUCT, ASK, and DESCRIBE queries are not currently available.
+</Note>
+
+<Warning>
+Invalid SPARQL syntax will result in a 500 error. Validate your queries before sending them to the API.
+</Warning>
+
+## Error Handling
+
+Invalid query:
+
+```json
+{
+  "error": "SPARQLException",
+  "message": "Syntax error in SPARQL query"
+}
+```
+
+## Performance Tips
+
+1. **Use LIMIT** to restrict result size
+2. **Be specific** with triple patterns
+3. **Use FILTER** early in the WHERE clause
+4. **Avoid** expensive operations like OPTIONAL on large datasets
+
+## Query Examples Repository
+
+For more query examples, refer to the ontology documentation at:
+```
+http://jchilon3mas.org/ontologia/queries
+```

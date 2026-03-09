@@ -1,0 +1,760 @@
+---
+title: 'Writing SPARQL Queries'
+description: 'Learn to write custom SPARQL queries to extract insights from the semantic knowledge graph'
+---
+
+SPARQL (SPARQL Protocol and RDF Query Language) is the SQL of the semantic web. This guide teaches you to write custom queries against the shipment knowledge graph.
+
+## SPARQL Endpoint
+
+Execute custom SPARQL queries via REST API:
+
+```bash
+curl -X POST http://localhost:8081/api/v1/grafo/sparql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "PREFIX enc: <http://www.encomiendas.com/ontologia#> SELECT ?codigo WHERE { ?envio enc:codigoSeguimiento ?codigo } LIMIT 10"
+  }'
+```
+
+**Code Reference:** (svc-web-semantica/src/main/java/org/jchilon3mas/springcloud/svc/web/semantica/svc_web_semantica/controllers/SemanticController.java:38)
+
+## Query Basics
+
+### Anatomy of a SPARQL Query
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?codigo ?estado ?peso
+WHERE {
+    ?envioURI enc:codigoSeguimiento ?codigo .
+    ?envioURI enc:tieneEstado ?estado .
+    ?envioURI enc:tienePesoKg ?peso .
+}
+ORDER BY ?estado
+LIMIT 10
+```
+
+**Parts:**
+1. **PREFIX**: Define namespace shortcuts
+2. **SELECT**: Specify variables to return
+3. **WHERE**: Pattern matching (like SQL WHERE + JOIN)
+4. **ORDER BY**: Sort results (optional)
+5. **LIMIT**: Restrict number of results (optional)
+
+### Variables
+
+Variables start with `?` or `$`:
+
+```sparql
+?envioURI     # URI of a shipment
+?codigo       # Literal value (tracking code)
+?peso         # Numeric value (weight)
+```
+
+### Triple Patterns
+
+Each line in WHERE is a triple pattern:
+
+```sparql
+?subject   predicate   ?object .
+```
+
+Example:
+```sparql
+?envioURI  enc:tieneEstado  "PENDIENTE" .
+#   ↑           ↑                ↑
+# subject   property        object (literal)
+```
+
+## Common Query Patterns
+
+### 1. List All Shipments
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+
+SELECT ?codigo ?estado ?fechaEnvio
+WHERE {
+    ?envioURI enc:codigoSeguimiento ?codigo .
+    ?envioURI enc:tieneEstado ?estado .
+    ?envioURI enc:fechaEnvio ?fechaEnvio .
+}
+ORDER BY DESC(?fechaEnvio)
+LIMIT 20
+```
+
+<CodeGroup>
+```bash curl
+curl -X POST http://localhost:8081/api/v1/grafo/sparql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "PREFIX enc: <http://www.encomiendas.com/ontologia#> SELECT ?codigo ?estado ?fechaEnvio WHERE { ?envioURI enc:codigoSeguimiento ?codigo . ?envioURI enc:tieneEstado ?estado . ?envioURI enc:fechaEnvio ?fechaEnvio . } ORDER BY DESC(?fechaEnvio) LIMIT 20"
+  }'
+```
+
+```javascript JavaScript
+const executeSparql = async (query) => {
+  const response = await fetch('http://localhost:8081/api/v1/grafo/sparql', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query })
+  });
+  return await response.json();
+};
+
+const query = `
+  PREFIX enc: <http://www.encomiendas.com/ontologia#>
+  SELECT ?codigo ?estado ?fechaEnvio
+  WHERE {
+    ?envioURI enc:codigoSeguimiento ?codigo .
+    ?envioURI enc:tieneEstado ?estado .
+    ?envioURI enc:fechaEnvio ?fechaEnvio .
+  }
+  ORDER BY DESC(?fechaEnvio)
+  LIMIT 20
+`;
+
+const results = await executeSparql(query);
+```
+</CodeGroup>
+
+### 2. Filter by State
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+
+SELECT ?codigo ?nombreRemitente ?peso
+WHERE {
+    ?clienteURI enc:realizaEnvio ?envioURI .
+    ?clienteURI enc:tieneNombre ?nombreRemitente .
+    ?envioURI enc:codigoSeguimiento ?codigo .
+    ?envioURI enc:tieneEstado "PENDIENTE" .
+    OPTIONAL { ?envioURI enc:tienePesoKg ?peso }
+}
+```
+
+<Note>
+  `OPTIONAL` means the pattern is optional - results are returned even if `?peso` doesn't exist.
+</Note>
+
+### 3. Weight Range Query
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?codigo ?peso ?descripcion
+WHERE {
+    ?envioURI enc:codigoSeguimiento ?codigo .
+    ?envioURI enc:tienePesoKg ?peso .
+    ?envioURI enc:contienePaquete ?descripcion .
+    FILTER (xsd:decimal(?peso) >= 2.0 && xsd:decimal(?peso) <= 5.0)
+}
+ORDER BY ?peso
+```
+
+<Warning>
+  Always cast numeric values with `xsd:decimal()` for comparisons in FILTER.
+</Warning>
+
+### 4. Find Heavy Packages (> 20kg)
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?codigo ?peso ?descripcion ?sucursalDestino
+WHERE {
+    ?envioURI enc:codigoSeguimiento ?codigo .
+    ?envioURI enc:tienePesoKg ?peso .
+    ?envioURI enc:contienePaquete ?descripcion .
+    ?envioURI enc:entregarEnSucursal ?sucursalDestino .
+    FILTER (xsd:decimal(?peso) > 20)
+}
+ORDER BY DESC(?peso)
+```
+
+### 5. Shipments by Destination
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+
+SELECT ?codigo ?origenEn ?destinoEn ?estado
+WHERE {
+    ?envioURI enc:codigoSeguimiento ?codigo .
+    ?envioURI enc:origenEn ?origenEn .
+    ?envioURI enc:destinoEn ?destinoEn .
+    ?envioURI enc:tieneEstado ?estado .
+    FILTER (contains(lcase(?destinoEn), "lima"))
+}
+```
+
+<Note>
+  `contains(lcase(?var), "text")` performs case-insensitive substring matching.
+</Note>
+
+### 6. Find Shipments by Client DNI
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+
+SELECT ?nombreCliente ?dniCliente ?codigo ?descripcion ?estado
+WHERE {
+    ?clienteURI enc:tieneDni ?dniCliente .
+    ?clienteURI enc:tieneNombre ?nombreCliente .
+    ?clienteURI enc:realizaEnvio ?envioURI .
+    ?envioURI enc:codigoSeguimiento ?codigo .
+    ?envioURI enc:contienePaquete ?descripcion .
+    ?envioURI enc:tieneEstado ?estado .
+    FILTER (?dniCliente = "12345678")
+}
+ORDER BY ?codigo
+```
+
+### 7. Search by Date Range
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+
+SELECT ?codigo ?fechaEnvio ?destinoEn
+WHERE {
+    ?envioURI enc:codigoSeguimiento ?codigo .
+    ?envioURI enc:fechaEnvio ?fechaEnvio .
+    ?envioURI enc:destinoEn ?destinoEn .
+    FILTER (
+        str(?fechaEnvio) >= "2026-03-01" &&
+        str(?fechaEnvio) <= "2026-03-31T23:59:59"
+    )
+}
+ORDER BY ?fechaEnvio
+```
+
+### 8. Delivered Shipments with Delivery Date
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+
+SELECT ?codigo ?nombreDestinatario ?fechaEnvio ?fechaEntrega
+WHERE {
+    ?envioURI enc:codigoSeguimiento ?codigo .
+    ?envioURI enc:nombreDestinatario ?nombreDestinatario .
+    ?envioURI enc:tieneEstado "ENTREGADO" .
+    ?envioURI enc:fechaEnvio ?fechaEnvio .
+    ?envioURI enc:fechaEntrega ?fechaEntrega .
+}
+ORDER BY DESC(?fechaEntrega)
+```
+
+### 9. Count Shipments by State
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+
+SELECT ?estado (COUNT(?envioURI) AS ?total)
+WHERE {
+    ?envioURI enc:tieneEstado ?estado .
+}
+GROUP BY ?estado
+ORDER BY DESC(?total)
+```
+
+<Note>
+  `COUNT()`, `SUM()`, `AVG()`, `MIN()`, `MAX()` are aggregate functions available in SPARQL.
+</Note>
+
+### 10. Average Weight by State
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?estado (AVG(xsd:decimal(?peso)) AS ?pesoPromedio)
+WHERE {
+    ?envioURI enc:tieneEstado ?estado .
+    ?envioURI enc:tienePesoKg ?peso .
+}
+GROUP BY ?estado
+```
+
+### 11. Shipments with Vehicle Assigned
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+
+SELECT ?codigo ?placa ?estado ?destinoEn
+WHERE {
+    ?envioURI enc:codigoSeguimiento ?codigo .
+    ?envioURI enc:placaVehiculo ?placa .
+    ?envioURI enc:tieneEstado ?estado .
+    ?envioURI enc:destinoEn ?destinoEn .
+    FILTER (BOUND(?placa))
+}
+```
+
+<Note>
+  `BOUND(?var)` checks if a variable has a value (not null).
+</Note>
+
+### 12. Find All Clients and Their Shipments
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+
+SELECT ?nombreCliente ?dniCliente ?telefono ?codigo
+WHERE {
+    ?clienteURI a enc:Cliente .
+    ?clienteURI enc:tieneNombre ?nombreCliente .
+    ?clienteURI enc:tieneDni ?dniCliente .
+    OPTIONAL { ?clienteURI enc:tieneTelefono ?telefono }
+    OPTIONAL {
+        ?clienteURI enc:realizaEnvio ?envioURI .
+        ?envioURI enc:codigoSeguimiento ?codigo .
+    }
+}
+ORDER BY ?nombreCliente ?codigo
+```
+
+<Note>
+  `a` is shorthand for `rdf:type` - checks class membership.
+</Note>
+
+## Advanced Queries
+
+### Full Shipment Details
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+
+SELECT *
+WHERE {
+    ?clienteURI enc:realizaEnvio ?envioURI .
+    ?clienteURI enc:tieneNombre ?nombreRemitente .
+    ?envioURI enc:codigoSeguimiento ?codigo .
+    
+    OPTIONAL { ?clienteURI enc:tieneDni ?dniRemitente }
+    OPTIONAL { ?clienteURI enc:tieneTelefono ?telefonoRemitente }
+    OPTIONAL { ?envioURI enc:tieneEstado ?estado }
+    OPTIONAL { ?envioURI enc:contienePaquete ?descripcion }
+    OPTIONAL { ?envioURI enc:tienePesoKg ?peso }
+    OPTIONAL { ?envioURI enc:tieneDimensiones ?dimensiones }
+    OPTIONAL { ?envioURI enc:tienePrecio ?precio }
+    OPTIONAL { ?envioURI enc:nombreDestinatario ?nombreDestinatario }
+    OPTIONAL { ?envioURI enc:dniDestinatario ?dniDestinatario }
+    OPTIONAL { ?envioURI enc:origenEn ?origenEn }
+    OPTIONAL { ?envioURI enc:destinoEn ?destinoEn }
+    OPTIONAL { ?envioURI enc:sucursalOrigen ?sucursalOrigen }
+    OPTIONAL { ?envioURI enc:entregarEnSucursal ?sucursalDestino }
+    OPTIONAL { ?envioURI enc:fechaEnvio ?fechaEnvio }
+    OPTIONAL { ?envioURI enc:fechaEntrega ?fechaEntrega }
+    OPTIONAL { ?envioURI enc:placaVehiculo ?placaVehiculo }
+    
+    FILTER (?codigo = "ENV-1710334200000")
+}
+```
+
+<Note>
+  `SELECT *` returns all bound variables.
+</Note>
+
+### Calculate Delivery Time
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?codigo ?fechaEnvio ?fechaEntrega 
+       (xsd:dateTime(?fechaEntrega) - xsd:dateTime(?fechaEnvio) AS ?duracion)
+WHERE {
+    ?envioURI enc:codigoSeguimiento ?codigo .
+    ?envioURI enc:tieneEstado "ENTREGADO" .
+    ?envioURI enc:fechaEnvio ?fechaEnvio .
+    ?envioURI enc:fechaEntrega ?fechaEntrega .
+}
+ORDER BY DESC(?duracion)
+```
+
+### Most Active Clients
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+
+SELECT ?nombreCliente ?dniCliente (COUNT(?envioURI) AS ?totalEnvios)
+WHERE {
+    ?clienteURI enc:tieneNombre ?nombreCliente .
+    ?clienteURI enc:tieneDni ?dniCliente .
+    ?clienteURI enc:realizaEnvio ?envioURI .
+}
+GROUP BY ?nombreCliente ?dniCliente
+ORDER BY DESC(?totalEnvios)
+LIMIT 10
+```
+
+### Popular Routes
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+
+SELECT ?origenEn ?destinoEn (COUNT(?envioURI) AS ?cantidad)
+WHERE {
+    ?envioURI enc:origenEn ?origenEn .
+    ?envioURI enc:destinoEn ?destinoEn .
+}
+GROUP BY ?origenEn ?destinoEn
+ORDER BY DESC(?cantidad)
+```
+
+### Revenue by Destination
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+
+SELECT ?destinoEn (SUM(xsd:decimal(?precio)) AS ?ingresoTotal)
+WHERE {
+    ?envioURI enc:destinoEn ?destinoEn .
+    ?envioURI enc:tienePrecio ?precio .
+}
+GROUP BY ?destinoEn
+ORDER BY DESC(?ingresoTotal)
+```
+
+## SPARQL Functions
+
+### String Functions
+
+```sparql
+# Case conversion
+lcase(?var)         # lowercase
+ucase(?var)         # uppercase
+
+# String operations
+contains(?str, "substring")    # substring match
+strstarts(?str, "prefix")      # starts with
+strends(?str, "suffix")        # ends with
+strlen(?str)                   # length
+substr(?str, start, length)    # substring
+
+# Concatenation
+concat(?str1, " - ", ?str2)
+
+# Replace
+replace(?str, "pattern", "replacement")
+```
+
+**Example:**
+```sparql
+SELECT ?codigo (ucase(?estado) AS ?estadoMayus)
+WHERE {
+    ?envio enc:codigoSeguimiento ?codigo .
+    ?envio enc:tieneEstado ?estado .
+}
+```
+
+### Numeric Functions
+
+```sparql
+abs(?num)     # absolute value
+round(?num)   # round to integer
+ceiling(?num) # round up
+floor(?num)   # round down
+```
+
+### Date Functions
+
+```sparql
+now()         # current timestamp
+year(?date)   # extract year
+month(?date)  # extract month
+day(?date)    # extract day
+```
+
+**Example:**
+```sparql
+SELECT ?codigo (year(?fechaEnvio) AS ?anio) (month(?fechaEnvio) AS ?mes)
+WHERE {
+    ?envio enc:codigoSeguimiento ?codigo .
+    ?envio enc:fechaEnvio ?fechaEnvio .
+}
+```
+
+## FILTER Operators
+
+```sparql
+# Comparison
+=, !=, <, >, <=, >=
+
+# Logical
+&&  (AND)
+||  (OR)
+!   (NOT)
+
+# Regex
+regex(?var, "pattern", "i")  # i = case-insensitive
+
+# Existence
+BOUND(?var)     # variable has a value
+!BOUND(?var)    # variable is null
+
+# Type checking
+isURI(?var)
+isLiteral(?var)
+```
+
+**Example:**
+```sparql
+FILTER (
+    ?peso >= 2.0 && 
+    ?peso <= 10.0 && 
+    (?estado = "PENDIENTE" || ?estado = "EN_TRANSITO")
+)
+```
+
+## Query Optimization Tips
+
+<CardGroup cols={2}>
+  <Card title="Use LIMIT" icon="gauge">
+    Always limit results during development:
+    ```sparql
+    LIMIT 100
+    ```
+  </Card>
+  <Card title="Filter Early" icon="filter">
+    Put most restrictive FILTERs first to reduce intermediate results
+  </Card>
+  <Card title="Use OPTIONAL Wisely" icon="circle-question">
+    OPTIONAL patterns can be expensive. Only use when truly optional.
+  </Card>
+  <Card title="Index-Friendly Patterns" icon="bolt">
+    Start patterns with specific subjects when possible
+  </Card>
+</CardGroup>
+
+## Query Types
+
+### SELECT (Most Common)
+
+Returns variable bindings:
+
+```sparql
+SELECT ?codigo ?peso WHERE { ... }
+```
+
+### ASK
+
+Returns boolean (true/false):
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+
+ASK {
+    ?envio enc:codigoSeguimiento "ENV-1710334200000" .
+    ?envio enc:tieneEstado "ENTREGADO" .
+}
+```
+
+**Response:** `true` or `false`
+
+### CONSTRUCT
+
+Returns RDF triples:
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+
+CONSTRUCT {
+    ?envio enc:esUrgente true .
+}
+WHERE {
+    ?envio enc:tienePesoKg ?peso .
+    FILTER (xsd:decimal(?peso) > 50)
+}
+```
+
+### DESCRIBE
+
+Returns all triples about a resource:
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+
+DESCRIBE <http://www.encomiendas.com/envio/ENV-1710334200000>
+```
+
+## Debugging Queries
+
+### Start Simple
+
+```sparql
+# Step 1: Get all shipments
+SELECT ?envio WHERE { ?envio a enc:Envio } LIMIT 10
+
+# Step 2: Add tracking codes
+SELECT ?envio ?codigo WHERE {
+    ?envio a enc:Envio .
+    ?envio enc:codigoSeguimiento ?codigo .
+} LIMIT 10
+
+# Step 3: Add filters
+SELECT ?codigo ?estado WHERE {
+    ?envio enc:codigoSeguimiento ?codigo .
+    ?envio enc:tieneEstado ?estado .
+    FILTER (?estado = "PENDIENTE")
+}
+```
+
+### Check Variable Bindings
+
+```sparql
+# See what variables are bound
+SELECT * WHERE {
+    ?envio enc:codigoSeguimiento ?codigo .
+    ?envio enc:tienePesoKg ?peso .
+} LIMIT 5
+```
+
+### Test FILTERs Separately
+
+```sparql
+# First without FILTER
+SELECT ?codigo ?peso WHERE {
+    ?envio enc:codigoSeguimiento ?codigo .
+    ?envio enc:tienePesoKg ?peso .
+}
+
+# Then add FILTER
+SELECT ?codigo ?peso WHERE {
+    ?envio enc:codigoSeguimiento ?codigo .
+    ?envio enc:tienePesoKg ?peso .
+    FILTER (xsd:decimal(?peso) > 10)
+}
+```
+
+## Common Errors
+
+<AccordionGroup>
+  <Accordion title="No results but data exists">
+    **Possible causes:**
+    - Missing PREFIX declarations
+    - Incorrect property URIs
+    - FILTERs too restrictive
+    - Data type mismatch (e.g., comparing string to decimal)
+
+    **Solution:** Start simple, add complexity incrementally
+  </Accordion>
+
+  <Accordion title="Query timeout">
+    **Possible causes:**
+    - Too many OPTIONAL patterns
+    - Missing LIMIT
+    - Cartesian product (multiple disconnected patterns)
+
+    **Solution:** Add LIMIT, remove unnecessary OPTIONALs, connect patterns
+  </Accordion>
+
+  <Accordion title="Type error: not a number">
+    ```
+    Error: Not a number
+    ```
+
+    **Solution:** Cast with `xsd:decimal()` or `xsd:integer()`:
+    ```sparql
+    FILTER (xsd:decimal(?peso) > 5)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Integration Examples
+
+### Python with SPARQLWrapper
+
+```python
+from SPARQLWrapper import SPARQLWrapper, JSON
+
+sparql = SPARQLWrapper("http://localhost:8081/api/v1/grafo/sparql")
+
+query = """
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+
+SELECT ?codigo ?estado ?peso
+WHERE {
+    ?envio enc:codigoSeguimiento ?codigo .
+    ?envio enc:tieneEstado ?estado .
+    ?envio enc:tienePesoKg ?peso .
+    FILTER (?estado = "PENDIENTE")
+}
+"""
+
+sparql.setQuery(query)
+sparql.setReturnFormat(JSON)
+
+results = sparql.query().convert()
+
+for result in results["results"]["bindings"]:
+    print(f"{result['codigo']['value']}: {result['peso']['value']}kg")
+```
+
+### JavaScript/Node.js
+
+```javascript
+const axios = require('axios');
+
+const executeSparql = async (query) => {
+  const response = await axios.post(
+    'http://localhost:8081/api/v1/grafo/sparql',
+    { query },
+    { headers: { 'Content-Type': 'application/json' } }
+  );
+  return response.data;
+};
+
+const query = `
+  PREFIX enc: <http://www.encomiendas.com/ontologia#>
+  SELECT ?codigo ?estado
+  WHERE {
+    ?envio enc:codigoSeguimiento ?codigo .
+    ?envio enc:tieneEstado ?estado .
+  }
+  LIMIT 10
+`;
+
+const results = await executeSparql(query);
+results.forEach(row => {
+  console.log(`${row.codigo}: ${row.estado}`);
+});
+```
+
+## Resources
+
+<CardGroup cols={2}>
+  <Card title="W3C SPARQL Spec" icon="book" href="https://www.w3.org/TR/sparql11-query/">
+    Official SPARQL 1.1 specification
+  </Card>
+  <Card title="Apache Jena" icon="code" href="https://jena.apache.org/tutorials/sparql.html">
+    Jena SPARQL tutorial
+  </Card>
+  <Card title="SPARQL Cheat Sheet" icon="file" href="https://www.iro.umontreal.ca/~lapalme/ift6281/sparql-1_1-cheat-sheet.pdf">
+    Quick reference guide
+  </Card>
+  <Card title="Online SPARQL Editor" icon="globe" href="https://yasgui.triply.cc/">
+    Test queries online (YASGUI)
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Ontology Reference" icon="book" href="/concepts/ontology">
+    Understand all available properties
+  </Card>
+  <Card title="Semantic Search" icon="magnifying-glass" href="/guides/semantic-search">
+    Use natural language queries
+  </Card>
+  <Card title="Semantic Web Concepts" icon="brain" href="/concepts/semantic-web">
+    Learn RDF and OWL fundamentals
+  </Card>
+  <Card title="Architecture" icon="diagram-project" href="/architecture">
+    See how SPARQL fits in the system
+  </Card>
+</CardGroup>

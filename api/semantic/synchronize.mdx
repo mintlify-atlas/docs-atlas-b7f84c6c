@@ -1,0 +1,282 @@
+---
+title: 'Synchronize Shipment'
+description: 'Synchronize shipment data to the semantic graph'
+api: 'POST /api/v1/grafo/sincronizar-envio'
+---
+
+## Endpoint
+
+```
+POST /api/v1/grafo/sincronizar-envio
+```
+
+Synchronize a shipment and its related entities (client, package, branches) into the semantic knowledge graph. This creates RDF triples following the OWL ontology structure.
+
+## Request Body
+
+### Client Information
+
+<ParamField body="idCliente" type="string" required>
+  Unique client identifier
+</ParamField>
+
+<ParamField body="nombreCliente" type="string" required>
+  Client full name
+</ParamField>
+
+<ParamField body="dniCliente" type="string" required>
+  Client DNI (national ID)
+</ParamField>
+
+<ParamField body="telefonoCliente" type="string">
+  Client phone number
+</ParamField>
+
+<ParamField body="correoCliente" type="string">
+  Client email address
+</ParamField>
+
+### Shipment Information
+
+<ParamField body="idEnvio" type="string" required>
+  Unique shipment identifier
+</ParamField>
+
+<ParamField body="codigoSeguimiento" type="string" required>
+  Tracking code
+</ParamField>
+
+<ParamField body="estadoEnvio" type="string" required>
+  Current shipment status: REGISTRADO, EN_TRANSITO, DISPONIBLE, ENTREGADO, or CANCELADO
+</ParamField>
+
+<ParamField body="precio" type="number" required>
+  Shipment price
+</ParamField>
+
+<ParamField body="fechaEnvio" type="string" required>
+  Shipment date (ISO format: YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss)
+</ParamField>
+
+<ParamField body="fechaEntrega" type="string">
+  Delivery date (ISO format, nullable)
+</ParamField>
+
+<ParamField body="placaVehiculo" type="string">
+  Vehicle plate number (optional)
+</ParamField>
+
+### Recipient Information
+
+<ParamField body="nombreDestinatario" type="string" required>
+  Recipient full name
+</ParamField>
+
+<ParamField body="dniDestinatario" type="string" required>
+  Recipient DNI
+</ParamField>
+
+### Route Information
+
+<ParamField body="ciudadOrigen" type="string" required>
+  Origin city name
+</ParamField>
+
+<ParamField body="ciudadDestino" type="string" required>
+  Destination city name
+</ParamField>
+
+<ParamField body="sucursalOrigen" type="string">
+  Origin branch office name
+</ParamField>
+
+<ParamField body="sucursalDestino" type="string">
+  Destination branch office name
+</ParamField>
+
+### Package Information
+
+<ParamField body="pesoEncomienda" type="number" required>
+  Package weight in kilograms
+</ParamField>
+
+<ParamField body="descripcionEncomienda" type="string" required>
+  Package description
+</ParamField>
+
+<ParamField body="dimensiones" type="string">
+  Package dimensions (e.g., "30x40x20 cm")
+</ParamField>
+
+## Response
+
+<ResponseField name="message" type="string">
+  Success message confirming the data was synchronized
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X POST http://localhost:8080/api/v1/grafo/sincronizar-envio \
+  -H "Content-Type: application/json" \
+  -d '{
+    "idCliente": "1",
+    "nombreCliente": "María García",
+    "dniCliente": "12345678",
+    "telefonoCliente": "987654321",
+    "correoCliente": "maria.garcia@email.com",
+    "idEnvio": "42",
+    "codigoSeguimiento": "ENV-20260309-ABCD1234",
+    "estadoEnvio": "EN_TRANSITO",
+    "precio": 25.50,
+    "fechaEnvio": "2026-03-09T10:30:00",
+    "fechaEntrega": null,
+    "placaVehiculo": "ABC-123",
+    "nombreDestinatario": "Juan Pérez",
+    "dniDestinatario": "87654321",
+    "ciudadOrigen": "Lima",
+    "ciudadDestino": "Cusco",
+    "sucursalOrigen": "Lima Centro",
+    "sucursalDestino": "Cusco Principal",
+    "pesoEncomienda": 2.5,
+    "descripcionEncomienda": "Documentos importantes",
+    "dimensiones": "30x40x20 cm"
+  }'
+```
+
+## Example Response
+
+```json
+"Tripleta OWL registrada correctamente en el grafo semántico."
+```
+
+## What Gets Created
+
+This endpoint creates the following RDF triples in the knowledge graph:
+
+### Shipment Entity
+```turtle
+<http://jchilon3mas.org/envio/42> a onto:Envio ;
+  onto:tieneCodigoSeguimiento "ENV-20260309-ABCD1234" ;
+  onto:tieneEstado "EN_TRANSITO" ;
+  onto:tienePrecio 25.50 ;
+  onto:tieneFechaEnvio "2026-03-09T10:30:00" ;
+  onto:enviadoPor <http://jchilon3mas.org/cliente/1> ;
+  onto:destinadoA "Juan Pérez" ;
+  onto:origen <http://jchilon3mas.org/sucursal/Lima> ;
+  onto:destino <http://jchilon3mas.org/sucursal/Cusco> ;
+  onto:contieneEncomienda <http://jchilon3mas.org/encomienda/42> ;
+  onto:transportadoEn <http://jchilon3mas.org/vehiculo/ABC-123> .
+```
+
+### Client Entity
+```turtle
+<http://jchilon3mas.org/cliente/1> a onto:Cliente ;
+  onto:tieneNombre "María García" ;
+  onto:tieneDNI "12345678" ;
+  onto:tieneTelefono "987654321" ;
+  onto:tieneCorreo "maria.garcia@email.com" .
+```
+
+### Package Entity
+```turtle
+<http://jchilon3mas.org/encomienda/42> a onto:Encomienda ;
+  onto:tienePeso 2.5 ;
+  onto:tieneDescripcion "Documentos importantes" ;
+  onto:tieneDimensiones "30x40x20 cm" .
+```
+
+### Branch Entities
+```turtle
+<http://jchilon3mas.org/sucursal/Lima> a onto:Sucursal ;
+  onto:tieneCiudad "Lima" ;
+  onto:tieneNombreSucursal "Lima Centro" .
+
+<http://jchilon3mas.org/sucursal/Cusco> a onto:Sucursal ;
+  onto:tieneCiudad "Cusco" ;
+  onto:tieneNombreSucursal "Cusco Principal" .
+```
+
+### Vehicle Entity
+```turtle
+<http://jchilon3mas.org/vehiculo/ABC-123> a onto:Vehiculo ;
+  onto:tienePlaca "ABC-123" .
+```
+
+## When to Synchronize
+
+Synchronize shipment data to the semantic graph in these scenarios:
+
+1. **After Shipment Creation** - Sync new shipments immediately after creation
+2. **Status Updates** - Re-sync when shipment status changes
+3. **Delivery** - Update with delivery timestamp when package is picked up
+4. **Bulk Import** - Sync existing database records to populate the graph
+
+## Integration Pattern
+
+Typical workflow:
+
+```javascript
+// 1. Create shipment via REST API
+const shipmentResponse = await fetch('http://localhost:8080/api/v1/envios', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(shipmentData)
+});
+
+const shipment = await shipmentResponse.json();
+
+// 2. Synchronize to semantic graph
+await fetch('http://localhost:8080/api/v1/grafo/sincronizar-envio', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    idEnvio: shipment.id.toString(),
+    codigoSeguimiento: shipment.codigoSeguimiento,
+    estadoEnvio: shipment.estado,
+    nombreCliente: shipment.remitente.nombreCompleto,
+    // ... map all required fields
+  })
+});
+```
+
+<Note>
+The semantic graph is a separate data store from the relational database. Synchronization must be done explicitly via this endpoint.
+</Note>
+
+## Automatic Synchronization
+
+For automatic synchronization, consider:
+
+1. **Event-Driven Architecture** - Use message queues (Kafka, RabbitMQ) to trigger sync on database changes
+2. **Database Triggers** - Set up triggers to call this endpoint on INSERT/UPDATE
+3. **Scheduled Batch Jobs** - Periodically sync all recent changes
+
+<Warning>
+Duplicate synchronization with the same `idEnvio` will update existing triples rather than creating duplicates. However, ensure data consistency by syncing the complete, current state of the shipment.
+</Warning>
+
+## Benefits of Synchronization
+
+Once synchronized, shipments become queryable via:
+
+- Natural language search
+- SPARQL queries
+- Relationship-based queries
+- Semantic inference
+
+## Error Handling
+
+If synchronization fails:
+
+```json
+{
+  "error": "SemanticSyncException",
+  "message": "Failed to create RDF triples: Invalid ontology property"
+}
+```
+
+Common issues:
+- Missing required fields
+- Invalid data types
+- Ontology constraint violations

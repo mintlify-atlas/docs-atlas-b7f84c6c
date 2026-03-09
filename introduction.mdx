@@ -1,0 +1,109 @@
+---
+title: Introduction
+description: Microservices-based package shipping management system with semantic web integration using Apache Jena and OWL ontologies for intelligent data querying.
+---
+
+## Welcome to Sistema de Envío de Encomiendas
+
+A powerful microservices architecture that combines traditional REST APIs with semantic web technologies to provide intelligent package shipping management and advanced search capabilities.
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get up and running in minutes with our step-by-step guide
+  </Card>
+  <Card title="Architecture" icon="diagram-project" href="/architecture">
+    Understand the system's microservices architecture
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/shipments/overview">
+    Explore the complete API documentation
+  </Card>
+  <Card title="Semantic Search" icon="magnifying-glass" href="/guides/semantic-search">
+    Learn about natural language search capabilities
+  </Card>
+</CardGroup>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="RESTful API" icon="server">
+    Complete package shipment management with tracking, status updates, and multi-branch support
+  </Card>
+  <Card title="Semantic Web Integration" icon="brain">
+    Apache Jena-powered semantic graph with OWL ontology modeling
+  </Card>
+  <Card title="Natural Language Search" icon="comments">
+    Query shipments using natural language with automatic SPARQL generation
+  </Card>
+  <Card title="Automated Synchronization" icon="rotate">
+    Real-time synchronization between relational database and semantic graph
+  </Card>
+</CardGroup>
+
+## System Overview
+
+The system consists of two main microservices:
+
+### Shipment Service (`svc-envio-encomienda`)
+Manages the core business logic for package shipping operations:
+- Create and track shipments
+- Update shipment status through lifecycle
+- Assign vehicles to shipments
+- Manage client and branch office data
+- MySQL database with JPA/Hibernate
+
+### Semantic Web Service (`svc-web-semantica`)
+Provides intelligent querying and semantic data management:
+- Natural language search processing
+- SPARQL query execution
+- RDF/OWL triple store management
+- Apache Jena TDB2 database
+- Automated semantic graph synchronization
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion title="Package Tracking & Management">
+    Create shipments, assign them to vehicles, track their progress through different states (PENDING, EN_TRANSITO, DISPONIBLE, ENTREGADO), and manage pickups with secure delivery passwords.
+  </Accordion>
+  
+  <Accordion title="Semantic Search">
+    Search for shipments using natural language queries like "shipments to Lima in January 2024" or "packages weighing more than 5kg" - the system automatically converts these to SPARQL queries.
+  </Accordion>
+  
+  <Accordion title="Multi-Branch Operations">
+    Manage shipments across multiple branch offices with origin and destination tracking, enabling inter-city package delivery operations.
+  </Accordion>
+  
+  <Accordion title="Advanced Analytics">
+    Execute custom SPARQL queries to analyze shipment patterns, customer behavior, and operational metrics using the semantic graph.
+  </Accordion>
+</AccordionGroup>
+
+## Technology Stack
+
+- **Backend Framework**: Spring Boot 3.5.11
+- **Database**: MySQL (relational), Apache Jena TDB2 (semantic)
+- **Semantic Web**: Apache Jena 4.10.0, OWL ontologies, SPARQL
+- **Build Tool**: Maven
+- **Java Version**: 25
+- **Architecture**: Microservices with OpenFeign for inter-service communication
+
+## Next Steps
+
+<Steps>
+  <Step title="Set up the environment">
+    Follow the [setup guide](/guides/setup) to configure MySQL, install dependencies, and prepare both microservices.
+  </Step>
+  
+  <Step title="Run the quickstart">
+    Complete the [quickstart tutorial](/quickstart) to create your first shipment and test semantic search.
+  </Step>
+  
+  <Step title="Explore the API">
+    Review the [API documentation](/api/shipments/overview) to understand all available endpoints.
+  </Step>
+  
+  <Step title="Learn semantic search">
+    Dive into [semantic search capabilities](/guides/semantic-search) to leverage natural language queries.
+  </Step>
+</Steps>

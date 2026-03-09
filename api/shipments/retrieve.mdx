@@ -1,0 +1,112 @@
+---
+title: 'Retrieve Package'
+description: 'Process package pickup and delivery'
+api: 'POST /api/v1/envios/retirar'
+---
+
+## Endpoint
+
+```
+POST /api/v1/envios/retirar
+```
+
+Process the package pickup by the recipient. This endpoint validates the delivery password and marks the shipment as delivered.
+
+## Request Body
+
+<ParamField body="codigoSeguimiento" type="string" required>
+  The tracking code of the shipment to retrieve
+</ParamField>
+
+<ParamField body="contrasenaEntrega" type="string" required>
+  The delivery password provided when the shipment was created. This is used to verify the recipient's identity.
+</ParamField>
+
+<ParamField body="fechaEntrega" type="string">
+  Delivery date in ISO format (YYYY-MM-DD). If null or not provided, uses the current date.
+</ParamField>
+
+## Response
+
+<ResponseField name="mensaje" type="string">
+  Success message confirming the package was delivered
+</ResponseField>
+
+<ResponseField name="codigoSeguimiento" type="string">
+  The tracking code of the delivered shipment
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X POST http://localhost:8080/api/v1/envios/retirar \
+  -H "Content-Type: application/json" \
+  -d '{
+    "codigoSeguimiento": "ENV-20260309-ABCD1234",
+    "contrasenaEntrega": "SEGURA123",
+    "fechaEntrega": "2026-03-12"
+  }'
+```
+
+## Example Response
+
+```json
+{
+  "mensaje": "Paquete entregado exitosamente",
+  "codigoSeguimiento": "ENV-20260309-ABCD1234"
+}
+```
+
+## Error Responses
+
+### Shipment Not Found
+
+```json
+{
+  "error": "EnvioNotFoundException",
+  "message": "Envío no encontrado con código: ENV-20260309-ABCD1234"
+}
+```
+
+### Invalid Password
+
+```json
+{
+  "error": "InvalidPasswordException",
+  "message": "Contraseña de entrega incorrecta"
+}
+```
+
+### Shipment Not Available
+
+```json
+{
+  "error": "InvalidStateException",
+  "message": "El envío debe estar en estado DISPONIBLE para ser retirado"
+}
+```
+
+<Warning>
+The delivery password must match exactly. This endpoint automatically updates the shipment status to `ENTREGADO` and sets the delivery timestamp.
+</Warning>
+
+## Workflow
+
+1. Recipient arrives at the destination branch office
+2. Recipient provides the tracking code and delivery password
+3. Branch office staff calls this endpoint
+4. System validates the password
+5. System checks that the shipment is in `DISPONIBLE` status
+6. System marks the shipment as `ENTREGADO`
+7. System records the delivery date and time
+
+<Note>
+Before calling this endpoint, ensure the shipment is in `DISPONIBLE` status. Use the **PUT /api/v1/envios/{id}/disponible** endpoint to mark a shipment as available for pickup.
+</Note>
+
+## Security Considerations
+
+- The delivery password should be communicated securely to the recipient
+- Only the person with the correct password can retrieve the package
+- The password is case-sensitive
+- Failed attempts should be logged for security monitoring

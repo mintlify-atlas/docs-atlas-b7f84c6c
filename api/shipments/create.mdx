@@ -1,0 +1,203 @@
+---
+title: 'Create Shipment'
+description: 'Create a new shipment in the system'
+api: 'POST /api/v1/envios'
+---
+
+## Endpoint
+
+```
+POST /api/v1/envios
+```
+
+Creates a new shipment with sender, recipient, package, and route information.
+
+## Request Body
+
+<ParamField body="remitenteId" type="number" required>
+  ID of the sender client
+</ParamField>
+
+<ParamField body="nombreDestinatario" type="string" required>
+  Full name of the recipient
+</ParamField>
+
+<ParamField body="dniDestinatario" type="string" required>
+  DNI (national ID) of the recipient
+</ParamField>
+
+<ParamField body="sucursalOrigenId" type="number" required>
+  ID of the origin branch office
+</ParamField>
+
+<ParamField body="sucursalDestinoId" type="number" required>
+  ID of the destination branch office
+</ParamField>
+
+<ParamField body="precio" type="number" required>
+  Shipment price
+</ParamField>
+
+<ParamField body="contrasenaEntrega" type="string" required>
+  Delivery password for package pickup verification
+</ParamField>
+
+<ParamField body="fechaEnvio" type="string">
+  Shipment date in ISO format (YYYY-MM-DD). If null, uses current date.
+</ParamField>
+
+<ParamField body="encomienda" type="object" required>
+  Package information
+  
+  <ParamField body="encomienda.peso" type="number" required>
+    Package weight in kilograms
+  </ParamField>
+  
+  <ParamField body="encomienda.dimensiones" type="string" required>
+    Package dimensions (e.g., "30x40x20 cm")
+  </ParamField>
+  
+  <ParamField body="encomienda.descripcion" type="string" required>
+    Package description
+  </ParamField>
+</ParamField>
+
+## Response
+
+<ResponseField name="id" type="number">
+  Unique shipment ID
+</ResponseField>
+
+<ResponseField name="codigoSeguimiento" type="string">
+  Unique tracking code for the shipment
+</ResponseField>
+
+<ResponseField name="estado" type="string">
+  Current shipment status (default: "REGISTRADO")
+</ResponseField>
+
+<ResponseField name="remitente" type="object">
+  Sender client information
+  
+  <ResponseField name="remitente.id" type="number">
+    Client ID
+  </ResponseField>
+  
+  <ResponseField name="remitente.dni" type="string">
+    Client DNI
+  </ResponseField>
+  
+  <ResponseField name="remitente.nombreCompleto" type="string">
+    Client full name
+  </ResponseField>
+  
+  <ResponseField name="remitente.correo" type="string">
+    Client email
+  </ResponseField>
+  
+  <ResponseField name="remitente.telefono" type="string">
+    Client phone
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="encomienda" type="object">
+  Package details
+</ResponseField>
+
+<ResponseField name="nombreDestinatario" type="string">
+  Recipient name
+</ResponseField>
+
+<ResponseField name="dniDestinatario" type="string">
+  Recipient DNI
+</ResponseField>
+
+<ResponseField name="precio" type="number">
+  Shipment price
+</ResponseField>
+
+<ResponseField name="fechaEnvio" type="string">
+  Shipment creation date and time
+</ResponseField>
+
+<ResponseField name="sucursalOrigen" type="object">
+  Origin branch office details
+</ResponseField>
+
+<ResponseField name="sucursalDestino" type="object">
+  Destination branch office details
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X POST http://localhost:8080/api/v1/envios \
+  -H "Content-Type: application/json" \
+  -d '{
+    "remitenteId": 1,
+    "nombreDestinatario": "Juan Pérez",
+    "dniDestinatario": "87654321",
+    "sucursalOrigenId": 1,
+    "sucursalDestinoId": 2,
+    "precio": 25.50,
+    "contrasenaEntrega": "SEGURA123",
+    "fechaEnvio": "2026-03-09",
+    "encomienda": {
+      "peso": 2.5,
+      "dimensiones": "30x40x20 cm",
+      "descripcion": "Documentos importantes"
+    }
+  }'
+```
+
+## Example Response
+
+```json
+{
+  "id": 42,
+  "codigoSeguimiento": "ENV-20260309-ABCD1234",
+  "estado": "REGISTRADO",
+  "remitente": {
+    "id": 1,
+    "dni": "12345678",
+    "nombreCompleto": "María García",
+    "correo": "maria.garcia@email.com",
+    "telefono": "987654321"
+  },
+  "encomienda": {
+    "id": 42,
+    "peso": 2.5,
+    "dimensiones": "30x40x20 cm",
+    "descripcion": "Documentos importantes"
+  },
+  "nombreDestinatario": "Juan Pérez",
+  "dniDestinatario": "87654321",
+  "precio": 25.50,
+  "fechaEnvio": "2026-03-09T10:30:00",
+  "fechaEntrega": null,
+  "placa": null,
+  "sucursalOrigen": {
+    "id": 1,
+    "codigoSucursal": "LIM-001",
+    "nombreSucursal": "Lima Centro",
+    "direccion": "Av. Abancay 123",
+    "ciudad": "Lima"
+  },
+  "sucursalDestino": {
+    "id": 2,
+    "codigoSucursal": "CUS-001",
+    "nombreSucursal": "Cusco Principal",
+    "direccion": "Av. El Sol 456",
+    "ciudad": "Cusco"
+  },
+  "contrasenaEntrega": "SEGURA123"
+}
+```
+
+<Note>
+The tracking code (`codigoSeguimiento`) is automatically generated and should be provided to the client for tracking purposes.
+</Note>
+
+<Warning>
+Store the `contrasenaEntrega` securely. It will be required for package pickup at the destination.
+</Warning>

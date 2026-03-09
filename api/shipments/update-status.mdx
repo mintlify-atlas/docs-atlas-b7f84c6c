@@ -1,0 +1,102 @@
+---
+title: 'Update Shipment Status'
+description: 'Update the status of a shipment'
+api: 'PUT /api/v1/envios/actualizar-estado'
+---
+
+## Endpoint
+
+```
+PUT /api/v1/envios/actualizar-estado
+```
+
+Update the status of an existing shipment. This endpoint allows manual status transitions for shipment workflow management.
+
+## Request Body
+
+<ParamField body="envioId" type="number" required>
+  ID of the shipment to update
+</ParamField>
+
+<ParamField body="nuevoEstado" type="string" required>
+  New status for the shipment. Valid values:
+  - `REGISTRADO` - Shipment registered
+  - `EN_TRANSITO` - In transit
+  - `DISPONIBLE` - Available for pickup
+  - `ENTREGADO` - Delivered
+  - `CANCELADO` - Cancelled
+</ParamField>
+
+## Response
+
+<ResponseField name="mensaje" type="string">
+  Success message indicating the status was updated
+</ResponseField>
+
+<ResponseField name="envioId" type="string">
+  ID of the updated shipment
+</ResponseField>
+
+<ResponseField name="nuevoEstado" type="string">
+  The new status that was applied
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X PUT http://localhost:8080/api/v1/envios/actualizar-estado \
+  -H "Content-Type: application/json" \
+  -d '{
+    "envioId": 42,
+    "nuevoEstado": "EN_TRANSITO"
+  }'
+```
+
+## Example Response
+
+```json
+{
+  "mensaje": "Estado actualizado exitosamente a: EN_TRANSITO",
+  "envioId": "42",
+  "nuevoEstado": "EN_TRANSITO"
+}
+```
+
+## Error Response
+
+If the shipment is not found:
+
+```json
+{
+  "error": "EnvioNotFoundException",
+  "message": "Envío no encontrado con id: 42"
+}
+```
+
+<Warning>
+Ensure status transitions follow your business logic. Invalid transitions (e.g., from `ENTREGADO` to `REGISTRADO`) are not validated by this endpoint.
+</Warning>
+
+## Alternative Status Update Endpoints
+
+For specific status transitions, consider using these specialized endpoints:
+
+- **PUT /api/v1/envios/{id}/disponible** - Mark as available for pickup
+- **PUT /api/v1/envios/{id}/cancelar** - Cancel a shipment
+- **POST /api/v1/envios/retirar** - Process delivery (sets to ENTREGADO)
+
+## Valid Status Transitions
+
+Typical workflow:
+
+1. `REGISTRADO` → Initial state when created
+2. `EN_TRANSITO` → When assigned to a vehicle
+3. `DISPONIBLE` → When arrived at destination
+4. `ENTREGADO` → When picked up by recipient
+
+Alternative:
+- `CANCELADO` → Can be set from any state before delivery
+
+<Note>
+This endpoint provides flexibility for manual status updates. For automated workflows, use the specialized endpoints that include additional validations.
+</Note>

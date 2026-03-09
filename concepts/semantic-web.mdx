@@ -1,0 +1,381 @@
+---
+title: 'Semantic Web Fundamentals'
+description: 'Understand RDF triples, OWL ontologies, and why semantic web technologies power this system'
+---
+
+The semantic web enables machines to understand and reason about data through standardized formats and vocabularies. This system uses semantic web technologies to provide intelligent search capabilities over shipment data.
+
+## What is the Semantic Web?
+
+The Semantic Web is an extension of the World Wide Web that allows data to be shared and reused across applications, enterprises, and communities. It uses standardized formats (RDF, OWL) to represent knowledge in a machine-readable way.
+
+### Key Benefits for This System
+
+<CardGroup cols={2}>
+  <Card title="Natural Language Queries" icon="comments">
+    Search shipments using plain language instead of complex database queries
+  </Card>
+  <Card title="Relationship Inference" icon="project-diagram">
+    Automatically infer relationships between clients, shipments, and branches
+  </Card>
+  <Card title="Flexible Schema" icon="expand">
+    Add new properties without breaking existing queries or data
+  </Card>
+  <Card title="Semantic Reasoning" icon="brain">
+    Query by meaning, not just keywords (e.g., "heavy packages" understands weight > 20kg)
+  </Card>
+</CardGroup>
+
+## RDF Triples: The Foundation
+
+**RDF (Resource Description Framework)** represents data as triples: **Subject - Predicate - Object**
+
+### Example from Our System
+
+When you create a shipment, it's stored as RDF triples:
+
+```turtle
+# Subject: Client
+<http://www.encomiendas.com/cliente/12345678> a enc:Cliente ;
+    enc:tieneNombre "Juan Pérez" ;
+    enc:tieneDni "12345678" ;
+    enc:tieneTelefono "987654321" ;
+    enc:realizaEnvio <http://www.encomiendas.com/envio/ENV-1234567890> .
+
+# Subject: Shipment
+<http://www.encomiendas.com/envio/ENV-1234567890> a enc:Envio ;
+    enc:codigoSeguimiento "ENV-1234567890" ;
+    enc:tieneEstado "PENDIENTE" ;
+    enc:contienePaquete "Laptop Dell XPS 15" ;
+    enc:tienePesoKg "2.5"^^xsd:decimal ;
+    enc:tieneDimensiones "40x30x10" ;
+    enc:tienePrecio "35.50" ;
+    enc:nombreDestinatario "María García" ;
+    enc:dniDestinatario "87654321" ;
+    enc:origenEn "Cajamarca" ;
+    enc:destinoEn "Lima" ;
+    enc:sucursalOrigen "Sucursal Centro Cajamarca" ;
+    enc:entregarEnSucursal "Sucursal Miraflores Lima" ;
+    enc:fechaEnvio "2026-03-09T10:30:00" .
+```
+
+### Breaking Down a Triple
+
+Each line is a triple:
+
+| Subject | Predicate | Object |
+|---------|-----------|--------|
+| `<...cliente/12345678>` | `enc:tieneNombre` | `"Juan Pérez"` |
+| `<...cliente/12345678>` | `enc:realizaEnvio` | `<...envio/ENV-123...>` |
+| `<...envio/ENV-123...>` | `enc:tieneEstado` | `"PENDIENTE"` |
+| `<...envio/ENV-123...>` | `enc:tienePesoKg` | `"2.5"^^xsd:decimal` |
+
+<Note>
+  URIs uniquely identify resources globally. Literals are values (strings, numbers, dates).
+</Note>
+
+## OWL Ontologies: Defining Structure
+
+**OWL (Web Ontology Language)** extends RDF to define vocabularies and relationships with formal semantics.
+
+Our system uses `encomiendas.ttl` ontology (svc-web-semantica/src/main/resources/encomiendas.ttl) to define:
+
+### 1. Classes
+
+Classes represent types of things:
+
+```turtle
+enc:Cliente a owl:Class ;
+    rdfs:label   "Cliente"@es ;
+    rdfs:comment "Persona natural que actúa como remitente de un envío."@es .
+
+enc:Envio a owl:Class ;
+    rdfs:label   "Envío"@es ;
+    rdfs:comment "Traslado de una encomienda desde una sucursal de origen a una de destino."@es .
+
+enc:Encomienda a owl:Class ;
+    rdfs:label   "Encomienda"@es ;
+    rdfs:comment "Paquete o bulto físico que forma parte de un envío."@es .
+
+enc:Sucursal a owl:Class ;
+    rdfs:label   "Sucursal"@es ;
+    rdfs:comment "Punto físico de la empresa donde se reciben y entregan encomiendas."@es .
+```
+
+### 2. Subclasses (Inheritance)
+
+Specialized types inherit from parent classes:
+
+```turtle
+enc:EnvioUrgente a owl:Class ;
+    rdfs:label      "Envío Urgente"@es ;
+    rdfs:subClassOf enc:Envio .
+
+enc:EnvioFragil a owl:Class ;
+    rdfs:label      "Envío Frágil"@es ;
+    rdfs:subClassOf enc:Envio .
+
+enc:EnvioPesado a owl:Class ;
+    rdfs:label      "Envío Pesado"@es ;
+    rdfs:comment    "Envío cuyo peso supera los 20 kg."@es ;
+    rdfs:subClassOf enc:Envio .
+```
+
+<Note>
+  Future enhancement: Automatically classify shipments as `EnvioPesado` when weight > 20kg using reasoning.
+</Note>
+
+### 3. Object Properties (Relationships)
+
+Connect resources to other resources:
+
+```turtle
+enc:realizaEnvio a owl:ObjectProperty ;
+    rdfs:label   "realiza envío"@es ;
+    rdfs:domain  enc:Cliente ;
+    rdfs:range   enc:Envio .
+
+enc:esRealizadoPor a owl:ObjectProperty ;
+    rdfs:label   "es realizado por"@es ;
+    owl:inverseOf enc:realizaEnvio ;
+    rdfs:domain  enc:Envio ;
+    rdfs:range   enc:Cliente .
+```
+
+**Inverse properties** enable bidirectional navigation:
+- If `Cliente1 realizaEnvio Envio1`
+- Then automatically: `Envio1 esRealizadoPor Cliente1`
+
+### 4. Datatype Properties (Attributes)
+
+Connect resources to literal values:
+
+```turtle
+# Client properties
+enc:tieneNombre a owl:DatatypeProperty ;
+    rdfs:domain  enc:Cliente ;
+    rdfs:range   xsd:string .
+
+enc:tieneDni a owl:DatatypeProperty, owl:FunctionalProperty ;
+    rdfs:domain  enc:Cliente ;
+    rdfs:range   xsd:string .
+
+# Shipment properties
+enc:codigoSeguimiento a owl:DatatypeProperty, owl:FunctionalProperty ;
+    rdfs:domain  enc:Envio ;
+    rdfs:range   xsd:string .
+
+enc:tienePesoKg a owl:DatatypeProperty ;
+    rdfs:domain  enc:Envio ;
+    rdfs:range   xsd:decimal .
+```
+
+<Note>
+  `owl:FunctionalProperty` means a resource can have at most one value for this property (e.g., one DNI per client).
+</Note>
+
+### 5. Disjoint Classes
+
+Enforce that classes don't overlap:
+
+```turtle
+enc:Cliente   owl:disjointWith enc:Envio .
+enc:Cliente   owl:disjointWith enc:Sucursal .
+enc:Envio     owl:disjointWith enc:Encomienda .
+```
+
+This prevents logical errors like "a Client cannot also be a Shipment."
+
+## SPARQL: Querying the Graph
+
+**SPARQL** is the query language for RDF data, similar to SQL but for graphs.
+
+### Example: Find Pending Shipments
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+
+SELECT ?codigo ?nombreRemitente ?peso ?destino
+WHERE {
+    ?clienteURI enc:realizaEnvio ?envioURI .
+    ?clienteURI enc:tieneNombre ?nombreRemitente .
+    ?envioURI enc:codigoSeguimiento ?codigo .
+    ?envioURI enc:tieneEstado "PENDIENTE" .
+    ?envioURI enc:tienePesoKg ?peso .
+    ?envioURI enc:destinoEn ?destino .
+}
+```
+
+### Example: Weight Range Query
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?codigo ?peso
+WHERE {
+    ?envioURI enc:codigoSeguimiento ?codigo .
+    ?envioURI enc:tienePesoKg ?peso .
+    FILTER (xsd:decimal(?peso) >= 2.0 && xsd:decimal(?peso) <= 5.0)
+}
+```
+
+## Apache Jena TDB: Storage Engine
+
+**Apache Jena TDB** is a native RDF database used in this system.
+
+### Why TDB?
+
+- **High Performance**: Optimized for SPARQL queries
+- **File-Based**: No separate database server needed
+- **ACID Transactions**: Data integrity guaranteed
+- **Scalable**: Handles millions of triples
+
+### Storage Location
+
+```properties
+# svc-web-semantica/application.properties
+jena.tdb.directory=tdb_data
+```
+
+The `tdb_data/` directory contains binary-encoded RDF triples optimized for fast querying.
+
+## Natural Language to SPARQL Translation
+
+The `BusquedaSemanticaService` (svc-web-semantica/src/main/java/org/jchilon3mas/springcloud/svc/web/semantica/svc_web_semantica/services/BusquedaSemanticaService.java:18) translates natural language to SPARQL:
+
+### Example: "envios pendientes entre 2 y 5 kg"
+
+**Step 1:** Extract parameters
+- Estado: `PENDIENTE`
+- Peso min: `2`
+- Peso max: `5`
+
+**Step 2:** Generate SPARQL
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?codigo ?nombreRemitente ?estado ?peso
+WHERE {
+    ?clienteURI enc:realizaEnvio ?envioURI .
+    ?clienteURI enc:tieneNombre ?nombreRemitente .
+    ?envioURI enc:codigoSeguimiento ?codigo .
+    ?envioURI enc:tieneEstado ?estado .
+    ?envioURI enc:tienePesoKg ?peso .
+    FILTER (?estado = "PENDIENTE") .
+    FILTER (xsd:decimal(?peso) >= 2) .
+    FILTER (xsd:decimal(?peso) <= 5) .
+}
+```
+
+**Step 3:** Execute and return JSON results
+
+## Why Use Semantic Web Here?
+
+### Traditional SQL Approach
+
+```sql
+SELECT e.codigo_seguimiento, c.nombre, e.peso, e.estado
+FROM envios e
+JOIN clientes c ON e.remitente_id = c.id
+WHERE e.estado = 'PENDIENTE'
+  AND e.peso BETWEEN 2 AND 5;
+```
+
+**Challenges:**
+- Rigid schema
+- Complex JOINs for relationships
+- Difficult to add new query patterns
+- No natural language support
+
+### Semantic Web Approach
+
+<CardGroup cols={2}>
+  <Card title="Flexible Querying" icon="search">
+    Query by meaning, not table structure. Ask "heavy packages" without knowing weight thresholds.
+  </Card>
+  <Card title="Relationship Navigation" icon="route">
+    Follow relationships naturally: "clients who sent fragile packages to Lima"
+  </Card>
+  <Card title="Schema Evolution" icon="arrow-up">
+    Add new properties (e.g., `enc:esFragil`) without altering database schema.
+  </Card>
+  <Card title="Reasoning Potential" icon="lightbulb">
+    Future: Infer `EnvioPesado` automatically, recommend routes, detect anomalies.
+  </Card>
+</CardGroup>
+
+## Namespaces and Prefixes
+
+Namespaces prevent naming conflicts:
+
+```turtle
+@prefix enc:  <http://www.encomiendas.com/ontologia#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+```
+
+- **enc**: Our custom ontology
+- **owl**: OWL vocabulary
+- **rdf/rdfs**: RDF core vocabulary
+- **xsd**: XML Schema datatypes (string, decimal, date)
+
+## Data Types in RDF
+
+Common XSD datatypes used:
+
+| Type | Example | Usage |
+|------|---------|-------|
+| `xsd:string` | `"Juan Pérez"` | Names, descriptions |
+| `xsd:decimal` | `"2.5"^^xsd:decimal` | Weight, precise numbers |
+| `xsd:dateTime` | `"2026-03-09T10:30:00"` | Timestamps |
+| `xsd:integer` | `"10"^^xsd:integer` | Counts |
+
+<Warning>
+  Always use `xsd:decimal` for numbers you'll filter/compare in SPARQL queries.
+</Warning>
+
+## Limitations and Trade-offs
+
+### Current Implementation
+
+| Aspect | Current State | Improvement Opportunity |
+|--------|---------------|-------------------------|
+| **Reasoning** | Not enabled | Add OWL reasoner for automatic classification |
+| **Performance** | File-based TDB | Use Jena Fuseki for distributed queries |
+| **Validation** | Manual in code | Use SHACL shapes for data validation |
+| **Federation** | Single graph | Query multiple remote endpoints |
+
+### When NOT to Use Semantic Web
+
+- Simple CRUD applications with fixed schemas
+- High-frequency transactional writes (stick to SQL for writes, sync to RDF for reads)
+- When natural language search isn't needed
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Explore the Ontology" icon="book" href="/concepts/ontology">
+    Deep dive into the encomiendas.ttl structure
+  </Card>
+  <Card title="Write SPARQL Queries" icon="code" href="/guides/sparql-queries">
+    Learn to write custom SPARQL queries
+  </Card>
+  <Card title="Semantic Search Guide" icon="magnifying-glass" href="/guides/semantic-search">
+    Master natural language querying
+  </Card>
+  <Card title="Architecture Overview" icon="diagram-project" href="/architecture">
+    Understand how it all fits together
+  </Card>
+</CardGroup>
+
+## Additional Resources
+
+- [W3C RDF Primer](https://www.w3.org/TR/rdf11-primer/)
+- [OWL 2 Web Ontology Language](https://www.w3.org/TR/owl2-overview/)
+- [SPARQL 1.1 Query Language](https://www.w3.org/TR/sparql11-query/)
+- [Apache Jena Documentation](https://jena.apache.org/documentation/)

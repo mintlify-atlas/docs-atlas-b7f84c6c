@@ -1,0 +1,136 @@
+---
+title: 'Semantic Web API Overview'
+description: 'Overview of semantic graph and natural language query endpoints'
+---
+
+## Base URL
+
+All semantic web endpoints are available at:
+
+```
+http://localhost:8080/api/v1/grafo
+```
+
+## What is the Semantic API?
+
+The Semantic Web API provides advanced querying capabilities using RDF graphs and OWL ontologies. It allows you to:
+
+- Query shipment data using natural language
+- Execute SPARQL queries directly on the knowledge graph
+- Synchronize shipment data into the semantic graph
+
+## Available Endpoints
+
+### Natural Language Search
+- **GET /api/v1/grafo/buscar** - Search using natural language queries
+
+### SPARQL Queries
+- **POST /api/v1/grafo/sparql** - Execute custom SPARQL queries
+
+### Data Synchronization
+- **POST /api/v1/grafo/sincronizar-envio** - Synchronize shipment data to the semantic graph
+
+## Architecture
+
+The semantic service uses:
+
+- **Apache Jena** - RDF triple store and SPARQL engine
+- **OWL Ontology** - Semantic model for shipments, clients, and branches
+- **Natural Language Processing** - Converts user queries to SPARQL
+
+## Example Use Cases
+
+### Natural Language Search
+
+Find shipments using conversational queries:
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/grafo/buscar?texto=envios de Lima a Cusco"
+```
+
+Other natural language queries:
+- "envíos entregados hoy"
+- "paquetes en tránsito a Arequipa"
+- "envíos de María García"
+- "paquetes mayores a 5 kg"
+
+### SPARQL Queries
+
+Execute precise semantic queries:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/grafo/sparql \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "PREFIX onto: <http://jchilon3mas.org/ontologia#> SELECT ?envio ?estado WHERE { ?envio onto:tieneEstado ?estado . }"
+  }'
+```
+
+### Data Synchronization
+
+Sync shipments to the semantic graph for enhanced querying:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/grafo/sincronizar-envio \
+  -H "Content-Type: application/json" \
+  -d '{
+    "idEnvio": "42",
+    "codigoSeguimiento": "ENV-20260309-ABCD1234",
+    "estadoEnvio": "EN_TRANSITO",
+    "nombreCliente": "María García",
+    "ciudadOrigen": "Lima",
+    "ciudadDestino": "Cusco"
+  }'
+```
+
+## Benefits of Semantic Search
+
+### Traditional SQL Queries
+```sql
+SELECT * FROM envios 
+WHERE ciudad_origen = 'Lima' 
+AND ciudad_destino = 'Cusco' 
+AND estado = 'EN_TRANSITO';
+```
+
+### Natural Language Alternative
+```
+"envíos en tránsito de Lima a Cusco"
+```
+
+The semantic API automatically:
+- Understands synonyms ("en tránsito", "en camino", "transportando")
+- Handles variations in phrasing
+- Infers relationships between entities
+- Provides context-aware results
+
+## Response Format
+
+All semantic endpoints return results as arrays of key-value maps:
+
+```json
+[
+  {
+    "envio": "http://jchilon3mas.org/envio/42",
+    "codigo": "ENV-20260309-ABCD1234",
+    "estado": "EN_TRANSITO",
+    "origen": "Lima",
+    "destino": "Cusco"
+  },
+  {
+    "envio": "http://jchilon3mas.org/envio/43",
+    "codigo": "ENV-20260310-EFGH5678",
+    "estado": "EN_TRANSITO",
+    "origen": "Lima",
+    "destino": "Cusco"
+  }
+]
+```
+
+<Note>
+The semantic API complements traditional REST endpoints. Use it when you need flexible querying, natural language search, or complex relationship-based queries.
+</Note>
+
+<Warning>
+SPARQL queries require knowledge of the ontology structure. For most use cases, the natural language search endpoint is recommended.
+</Warning>

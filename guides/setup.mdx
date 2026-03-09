@@ -1,0 +1,653 @@
+---
+title: 'System Setup'
+description: 'Complete guide to setting up MySQL, configuring services, and running the package shipping system'
+---
+
+This guide walks you through the complete setup process for both microservices, from database creation to running your first queries.
+
+## Prerequisites
+
+Ensure you have the following installed:
+
+<CardGroup cols={2}>
+  <Card title="Java Development Kit" icon="mug-hot">
+    **Java 17 or higher**
+    
+    Check version:
+    ```bash
+    java -version
+    ```
+  </Card>
+  <Card title="Apache Maven" icon="box">
+    **Maven 3.6+**
+    
+    Check version:
+    ```bash
+    mvn -version
+    ```
+  </Card>
+  <Card title="MySQL Database" icon="database">
+    **MySQL 8.0 or higher**
+    
+    Check version:
+    ```bash
+    mysql --version
+    ```
+  </Card>
+  <Card title="API Testing Tool" icon="network-wired">
+    **curl, Postman, or similar**
+    
+    For testing REST APIs
+  </Card>
+</CardGroup>
+
+## Step 1: Database Setup
+
+<Steps>
+  <Step title="Start MySQL Server">
+    Ensure MySQL is running:
+
+    ```bash
+    # Linux/Mac
+    sudo systemctl start mysql
+    # or
+    brew services start mysql
+
+    # Windows
+    net start MySQL80
+    ```
+  </Step>
+
+  <Step title="Create Database">
+    Log into MySQL and create the database:
+
+    ```bash
+    mysql -u root -p
+    ```
+
+    ```sql
+    CREATE DATABASE bd_envio_encomienda;
+    ```
+
+    Verify:
+    ```sql
+    SHOW DATABASES;
+    ```
+
+    <Note>
+      Tables will be created automatically by JPA/Hibernate when you start the shipment service.
+    </Note>
+  </Step>
+
+  <Step title="Create Database User (Optional)">
+    For security, create a dedicated user:
+
+    ```sql
+    CREATE USER 'envio_user'@'localhost' IDENTIFIED BY 'secure_password';
+    GRANT ALL PRIVILEGES ON bd_envio_encomienda.* TO 'envio_user'@'localhost';
+    FLUSH PRIVILEGES;
+    ```
+  </Step>
+
+  <Step title="Verify Connection">
+    Test the connection:
+
+    ```bash
+    mysql -u envio_user -p bd_envio_encomienda
+    ```
+  </Step>
+</Steps>
+
+## Step 2: Configure Shipment Service
+
+<Steps>
+  <Step title="Navigate to Service Directory">
+    ```bash
+    cd svc-envio-encomienda
+    ```
+  </Step>
+
+  <Step title="Edit application.properties">
+    Open `src/main/resources/application.properties` and configure:
+
+    ```properties
+    spring.application.name=svc-envio-encomienda
+    server.port=8080
+
+    # Database Configuration
+    spring.datasource.url=jdbc:mysql://localhost:3306/bd_envio_encomienda
+    spring.datasource.username=root
+    spring.datasource.password=your_password
+
+    # JPA/Hibernate Configuration
+    spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQLDialect
+    spring.jpa.hibernate.ddl-auto=update
+    spring.jpa.show-sql=true
+    spring.jpa.properties.hibernate.format_sql=true
+
+    # Semantic Service Endpoint
+    microservicio.semantica.url=http://localhost:8081/api/v1/grafo
+    ```
+
+    <Warning>
+      Change `spring.datasource.username` and `spring.datasource.password` to match your MySQL credentials.
+    </Warning>
+  </Step>
+
+  <Step title="Understand Configuration Options">
+    **Key Configuration Properties:**
+
+    | Property | Description | Values |
+    |----------|-------------|--------|
+    | `spring.jpa.hibernate.ddl-auto` | Schema generation strategy | `update`, `create`, `create-drop`, `validate`, `none` |
+    | `spring.jpa.show-sql` | Show SQL in logs | `true`, `false` |
+    | `server.port` | HTTP port | `8080` (default) |
+    | `microservicio.semantica.url` | Semantic service URL | `http://localhost:8081/api/v1/grafo` |
+
+    <Note>
+      Use `ddl-auto=update` for development (auto-creates/updates tables). Use `validate` or `none` for production.
+    </Note>
+  </Step>
+</Steps>
+
+## Step 3: Configure Semantic Service
+
+<Steps>
+  <Step title="Navigate to Service Directory">
+    ```bash
+    cd svc-web-semantica
+    ```
+  </Step>
+
+  <Step title="Edit application.properties">
+    Open `src/main/resources/application.properties`:
+
+    ```properties
+    spring.application.name=web-semantica
+    server.port=8081
+
+    # Jena TDB Directory (created automatically)
+    jena.tdb.directory=tdb_data
+    ```
+
+    <Note>
+      The `tdb_data/` directory will be created automatically in the service root when the service starts.
+    </Note>
+  </Step>
+
+  <Step title="Verify Ontology File">
+    Ensure the ontology file exists:
+
+    ```bash
+    ls src/main/resources/encomiendas.ttl
+    ```
+
+    This file defines the semantic structure and is loaded on startup.
+  </Step>
+</Steps>
+
+## Step 4: Build and Run Services
+
+<Warning>
+  **Start Order Matters:** Always start the semantic service (port 8081) before the shipment service (port 8080) to ensure proper synchronization.
+</Warning>
+
+<Steps>
+  <Step title="Build Both Services">
+    Build to ensure no compilation errors:
+
+    ```bash
+    # Shipment service
+    cd svc-envio-encomienda
+    mvn clean install -DskipTests
+
+    # Semantic service
+    cd ../svc-web-semantica
+    mvn clean install -DskipTests
+    ```
+  </Step>
+
+  <Step title="Start Semantic Service (Terminal 1)">
+    ```bash
+    cd svc-web-semantica
+    mvn spring-boot:run
+    ```
+
+    **Expected Output:**
+    ```
+    Started SvcWebSemanticaApplication in X.XXX seconds
+    Tomcat started on port(s): 8081 (http)
+    ```
+
+    <Note>
+      You'll see the `tdb_data/` directory created in the service root.
+    </Note>
+  </Step>
+
+  <Step title="Start Shipment Service (Terminal 2)">
+    Open a new terminal:
+
+    ```bash
+    cd svc-envio-encomienda
+    mvn spring-boot:run
+    ```
+
+    **Expected Output:**
+    ```
+    HikariPool-1 - Starting...
+    HikariPool-1 - Start completed.
+    Started SvcEnvioEncomiendaApplication in X.XXX seconds
+    Tomcat started on port(s): 8080 (http)
+    ```
+
+    You should see SQL CREATE TABLE statements in the logs as Hibernate creates the schema.
+  </Step>
+
+  <Step title="Verify Services">
+    **Check Shipment Service:**
+    ```bash
+    curl http://localhost:8080/api/v1/envios
+    # Expected: [] (empty array)
+    ```
+
+    **Check Semantic Service:**
+    ```bash
+    curl -X GET "http://localhost:8081/api/v1/grafo/buscar?texto=todos"
+    # Expected: [] (empty array)
+    ```
+  </Step>
+</Steps>
+
+## Step 5: Seed Initial Data
+
+<Steps>
+  <Step title="Create Branches (Sucursales)">
+    ```bash
+    curl -X POST http://localhost:8080/api/v1/sucursales \
+      -H "Content-Type: application/json" \
+      -d '{
+        "nombre": "Sucursal Centro Cajamarca",
+        "ciudad": "Cajamarca",
+        "direccion": "Jr. Amalia Puga 450",
+        "telefono": "076345678"
+      }'
+
+    curl -X POST http://localhost:8080/api/v1/sucursales \
+      -H "Content-Type: application/json" \
+      -d '{
+        "nombre": "Sucursal Miraflores Lima",
+        "ciudad": "Lima",
+        "direccion": "Av. Larco 1234",
+        "telefono": "014567890"
+      }'
+    ```
+  </Step>
+
+  <Step title="Create Clients">
+    ```bash
+    curl -X POST http://localhost:8080/api/v1/clientes \
+      -H "Content-Type: application/json" \
+      -d '{
+        "nombreCompleto": "Juan Pérez",
+        "dni": "12345678",
+        "telefono": "987654321",
+        "correo": "juan.perez@example.com"
+      }'
+
+    curl -X POST http://localhost:8080/api/v1/clientes \
+      -H "Content-Type: application/json" \
+      -d '{
+        "nombreCompleto": "Ana López",
+        "dni": "23456789",
+        "telefono": "976543210",
+        "correo": "ana.lopez@example.com"
+      }'
+    ```
+  </Step>
+
+  <Step title="Create Test Shipments">
+    ```bash
+    curl -X POST http://localhost:8080/api/v1/envios \
+      -H "Content-Type: application/json" \
+      -d '{
+        "remitenteId": 1,
+        "encomienda": {
+          "descripcion": "Laptop Dell XPS 15",
+          "peso": 2.5,
+          "dimensiones": "40x30x10"
+        },
+        "nombreDestinatario": "María García",
+        "dniDestinatario": "87654321",
+        "sucursalOrigenId": 1,
+        "sucursalDestinoId": 2,
+        "precio": 35.50
+      }'
+    ```
+
+    <Note>
+      Save the `codigoSeguimiento` and `contrasenaEntrega` from the response for testing state transitions.
+    </Note>
+  </Step>
+
+  <Step title="Verify Semantic Synchronization">
+    ```bash
+    curl -X GET "http://localhost:8081/api/v1/grafo/buscar?texto=envios+pendientes"
+    ```
+
+    You should see the shipment you just created.
+  </Step>
+</Steps>
+
+## Step 6: Test State Transitions
+
+<Steps>
+  <Step title="Assign Vehicle (PENDIENTE → EN_TRANSITO)">
+    ```bash
+    curl -X POST http://localhost:8080/api/v1/envios/asignar-placa \
+      -H "Content-Type: application/json" \
+      -d '{
+        "envioId": 1,
+        "placa": "ABC-123"
+      }'
+    ```
+  </Step>
+
+  <Step title="Mark Available (EN_TRANSITO → DISPONIBLE)">
+    ```bash
+    curl -X PUT http://localhost:8080/api/v1/envios/1/disponible
+    ```
+  </Step>
+
+  <Step title="Deliver Package (DISPONIBLE → ENTREGADO)">
+    ```bash
+    curl -X POST http://localhost:8080/api/v1/envios/retirar \
+      -H "Content-Type: application/json" \
+      -d '{
+        "codigoSeguimiento": "ENV-1234567890",
+        "contrasenaEntrega": "1234"
+      }'
+    ```
+
+    Replace with your actual tracking code and password.
+  </Step>
+
+  <Step title="Test Semantic Search">
+    ```bash
+    # Search delivered shipments
+    curl -X GET "http://localhost:8081/api/v1/grafo/buscar?texto=entregados"
+
+    # Search by weight
+    curl -X GET "http://localhost:8081/api/v1/grafo/buscar?texto=entre+2+y+5+kg"
+
+    # Search by city
+    curl -X GET "http://localhost:8081/api/v1/grafo/buscar?texto=destino+Lima"
+    ```
+  </Step>
+</Steps>
+
+## Production Configuration
+
+### Security Best Practices
+
+<AccordionGroup>
+  <Accordion title="Database Security">
+    **Production Settings:**
+
+    ```properties
+    # Use dedicated user with limited privileges
+    spring.datasource.username=envio_prod_user
+    spring.datasource.password=${DB_PASSWORD}
+
+    # Disable schema auto-generation
+    spring.jpa.hibernate.ddl-auto=validate
+
+    # Don't expose SQL in logs
+    spring.jpa.show-sql=false
+    ```
+
+    Use environment variables for sensitive data:
+    ```bash
+    export DB_PASSWORD=secure_production_password
+    ```
+  </Accordion>
+
+  <Accordion title="Connection Pooling">
+    Configure HikariCP for optimal performance:
+
+    ```properties
+    spring.datasource.hikari.maximum-pool-size=10
+    spring.datasource.hikari.minimum-idle=5
+    spring.datasource.hikari.connection-timeout=30000
+    spring.datasource.hikari.idle-timeout=600000
+    spring.datasource.hikari.max-lifetime=1800000
+    ```
+  </Accordion>
+
+  <Accordion title="Logging Configuration">
+    Configure logging levels:
+
+    ```properties
+    logging.level.root=INFO
+    logging.level.org.jchilon3mas=DEBUG
+    logging.level.org.hibernate.SQL=WARN
+    logging.file.name=logs/envio-service.log
+    logging.file.max-size=10MB
+    logging.file.max-history=30
+    ```
+  </Accordion>
+
+  <Accordion title="CORS Configuration">
+    If accessing from web frontend:
+
+    ```java
+    @Configuration
+    public class CorsConfig {
+        @Bean
+        public WebMvcConfigurer corsConfigurer() {
+            return new WebMvcConfigurer() {
+                @Override
+                public void addCorsMappings(CorsRegistry registry) {
+                    registry.addMapping("/api/**")
+                        .allowedOrigins("https://yourdomain.com")
+                        .allowedMethods("GET", "POST", "PUT", "DELETE")
+                        .allowedHeaders("*");
+                }
+            };
+        }
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### External Configuration
+
+Use Spring Cloud Config or environment-specific profiles:
+
+```bash
+# application-prod.properties
+spring.datasource.url=${DATABASE_URL}
+spring.datasource.username=${DATABASE_USER}
+spring.datasource.password=${DATABASE_PASSWORD}
+microservicio.semantica.url=${SEMANTIC_SERVICE_URL}
+```
+
+Run with profile:
+```bash
+java -jar svc-envio-encomienda.jar --spring.profiles.active=prod
+```
+
+## Running as System Services
+
+### systemd (Linux)
+
+<Steps>
+  <Step title="Create Service File">
+    Create `/etc/systemd/system/envio-service.service`:
+
+    ```ini
+    [Unit]
+    Description=Shipment Service
+    After=network.target mysql.service
+
+    [Service]
+    Type=simple
+    User=envio
+    WorkingDirectory=/opt/envio-service
+    ExecStart=/usr/bin/java -jar /opt/envio-service/svc-envio-encomienda.jar
+    Restart=on-failure
+    RestartSec=10
+    StandardOutput=journal
+    StandardError=journal
+
+    [Install]
+    WantedBy=multi-user.target
+    ```
+  </Step>
+
+  <Step title="Enable and Start">
+    ```bash
+    sudo systemctl daemon-reload
+    sudo systemctl enable envio-service
+    sudo systemctl start envio-service
+    sudo systemctl status envio-service
+    ```
+  </Step>
+</Steps>
+
+### Docker Deployment
+
+<Steps>
+  <Step title="Create Dockerfile">
+    ```dockerfile
+    FROM openjdk:17-jdk-slim
+    WORKDIR /app
+    COPY target/svc-envio-encomienda-0.0.1-SNAPSHOT.jar app.jar
+    EXPOSE 8080
+    ENTRYPOINT ["java", "-jar", "app.jar"]
+    ```
+  </Step>
+
+  <Step title="Build Image">
+    ```bash
+    mvn clean package -DskipTests
+    docker build -t envio-service:latest .
+    ```
+  </Step>
+
+  <Step title="Run Container">
+    ```bash
+    docker run -d \
+      --name envio-service \
+      -p 8080:8080 \
+      -e SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/bd_envio_encomienda \
+      -e SPRING_DATASOURCE_USERNAME=root \
+      -e SPRING_DATASOURCE_PASSWORD=password \
+      envio-service:latest
+    ```
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="MySQL Connection Refused">
+    **Symptoms:**
+    ```
+    com.mysql.cj.jdbc.exceptions.CommunicationsException: Communications link failure
+    ```
+
+    **Solutions:**
+    - Verify MySQL is running: `sudo systemctl status mysql`
+    - Check credentials in `application.properties`
+    - Ensure database exists: `SHOW DATABASES;`
+    - Check MySQL is listening on 3306: `netstat -an | grep 3306`
+  </Accordion>
+
+  <Accordion title="Port Already in Use">
+    **Symptoms:**
+    ```
+    Port 8080 was already in use.
+    ```
+
+    **Solutions:**
+    - Find process: `lsof -i :8080` (Mac/Linux) or `netstat -ano | findstr :8080` (Windows)
+    - Kill process or change port in `application.properties`:
+      ```properties
+      server.port=8081
+      ```
+  </Accordion>
+
+  <Accordion title="Semantic Service Not Found">
+    **Symptoms:**
+    ```
+    Connection refused: http://localhost:8081/api/v1/grafo
+    ```
+
+    **Solutions:**
+    - Ensure semantic service is running: `curl http://localhost:8081/api/v1/grafo/buscar?texto=test`
+    - Check `microservicio.semantica.url` in `application.properties`
+    - Start semantic service before shipment service
+  </Accordion>
+
+  <Accordion title="TDB Lock Error">
+    **Symptoms:**
+    ```
+    TDB Exception: Dataset locked
+    ```
+
+    **Solutions:**
+    - Stop semantic service
+    - Delete lock file: `rm tdb_data/tdb.lock`
+    - Restart semantic service
+  </Accordion>
+
+  <Accordion title="Tables Not Created">
+    **Symptoms:**
+    ```
+    Table 'bd_envio_encomienda.envios' doesn't exist
+    ```
+
+    **Solutions:**
+    - Verify `spring.jpa.hibernate.ddl-auto=update` in `application.properties`
+    - Check Hibernate logs for schema generation
+    - Manually create tables if needed (check logs for CREATE statements)
+  </Accordion>
+</AccordionGroup>
+
+## Health Checks
+
+Add Spring Boot Actuator for monitoring:
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+```
+
+```properties
+management.endpoints.web.exposure.include=health,info,metrics
+management.endpoint.health.show-details=always
+```
+
+**Check Health:**
+```bash
+curl http://localhost:8080/actuator/health
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Create Shipments" icon="plus" href="/guides/creating-shipments">
+    Learn to create shipments via API
+  </Card>
+  <Card title="Semantic Search" icon="magnifying-glass" href="/guides/semantic-search">
+    Use natural language queries
+  </Card>
+  <Card title="Architecture" icon="diagram-project" href="/architecture">
+    Understand system design
+  </Card>
+  <Card title="State Lifecycle" icon="rotate" href="/concepts/shipment-lifecycle">
+    Master state transitions
+  </Card>
+</CardGroup>

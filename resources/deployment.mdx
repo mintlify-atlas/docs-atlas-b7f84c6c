@@ -1,0 +1,730 @@
+---
+title: 'Deployment Guide'
+description: 'Deploy the microservices with MySQL database and TDB storage'
+---
+
+# Deployment Guide
+
+This guide covers deploying both microservices in the shipping system:
+
+- **svc-envio-encomienda** - REST API for shipment management (port 8080)
+- **svc-web-semantica** - Semantic web RDF/OWL service (port 8081)
+
+---
+
+## Prerequisites
+
+### Required Software
+
+- **Java**: JDK 25 (as specified in pom.xml:29)
+- **Maven**: 3.6 or higher
+- **MySQL**: 8.0 or higher
+- **Operating System**: Linux, macOS, or Windows with Java support
+
+### Verify Java Installation
+
+```bash
+java -version
+# Expected: java version "25" or higher
+
+mvn -version
+# Expected: Apache Maven 3.6+
+```
+
+<Warning>
+  The project requires Java 25. Ensure your JAVA_HOME environment variable points to the correct JDK installation.
+</Warning>
+
+---
+
+## Database Setup
+
+### MySQL Installation
+
+<Accordion title="Ubuntu/Debian">
+  ```bash
+  sudo apt update
+  sudo apt install mysql-server
+  sudo systemctl start mysql
+  sudo systemctl enable mysql
+  ```
+</Accordion>
+
+<Accordion title="macOS (Homebrew)">
+  ```bash
+  brew install mysql
+  brew services start mysql
+  ```
+</Accordion>
+
+<Accordion title="Windows">
+  Download and install MySQL from [https://dev.mysql.com/downloads/installer/](https://dev.mysql.com/downloads/installer/)
+</Accordion>
+
+### Create Database
+
+Connect to MySQL and create the required database:
+
+```sql
+mysql -u root -p
+```
+
+```sql
+CREATE DATABASE bd_envio_encomienda CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Create dedicated user (recommended for production)
+CREATE USER 'envio_user'@'localhost' IDENTIFIED BY 'secure_password';
+GRANT ALL PRIVILEGES ON bd_envio_encomienda.* TO 'envio_user'@'localhost';
+FLUSH PRIVILEGES;
+
+EXIT;
+```
+
+<Note>
+  The database schema will be automatically created by Hibernate based on the `spring.jpa.hibernate.ddl-auto=update` setting.
+</Note>
+
+---
+
+## Configuration
+
+### svc-envio-encomienda Configuration
+
+**File**: `svc-envio-encomienda/src/main/resources/application.properties`  
+**Source**: svc-envio-encomienda/src/main/resources/application.properties:1
+
+<Accordion title="Default Configuration">
+  ```properties
+  spring.application.name=svc-envio-encomienda
+  server.port=8080
+  spring.datasource.url=jdbc:mysql://localhost:3306/bd_envio_encomienda
+  spring.datasource.username=root
+  spring.datasource.password=rodrigo357
+  
+  # JPA/Hibernate
+  spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQLDialect
+  spring.jpa.hibernate.ddl-auto=update  
+  spring.jpa.show-sql=true
+  spring.jpa.properties.hibernate.format_sql=true
+  
+  microservicio.semantica.url=http://localhost:8081/api/v1/grafo
+  ```
+</Accordion>
+
+#### Configuration Properties Explained
+
+<Accordion title="Database Connection">
+  **spring.datasource.url**
+  - JDBC connection string for MySQL
+  - Format: `jdbc:mysql://[host]:[port]/[database]`
+  - Default: `localhost:3306/bd_envio_encomienda`
+  
+  **spring.datasource.username**
+  - MySQL username
+  - Default: `root`
+  - **Production**: Use dedicated user with limited privileges
+  
+  **spring.datasource.password**
+  - MySQL password
+  - **Production**: Use environment variables or secret management
+  
+  <Warning>
+    Never commit passwords to version control. Use environment variables in production.
+  </Warning>
+</Accordion>
+
+<Accordion title="JPA/Hibernate Settings">
+  **spring.jpa.properties.hibernate.dialect**
+  - `org.hibernate.dialect.MySQLDialect` - Optimizes SQL for MySQL 8+
+  
+  **spring.jpa.hibernate.ddl-auto**
+  - `update` - Auto-creates/updates schema (development)
+  - Options: `none`, `validate`, `update`, `create`, `create-drop`
+  - **Production**: Use `validate` and manage schema with migrations (Flyway/Liquibase)
+  
+  **spring.jpa.show-sql**
+  - `true` - Logs SQL statements (development)
+  - **Production**: Set to `false` for performance
+  
+  **spring.jpa.properties.hibernate.format_sql**
+  - `true` - Pretty-prints SQL in logs
+  - **Production**: Set to `false`
+</Accordion>
+
+<Accordion title="Microservice Integration">
+  **microservicio.semantica.url**
+  - URL of the semantic web service
+  - Default: `http://localhost:8081/api/v1/grafo`
+  - Update for production deployment with actual service URL
+</Accordion>
+
+#### Production Configuration Example
+
+<Accordion title="application-prod.properties">
+  ```properties
+  spring.application.name=svc-envio-encomienda
+  server.port=${PORT:8080}
+  
+  # Database - using environment variables
+  spring.datasource.url=${DB_URL:jdbc:mysql://localhost:3306/bd_envio_encomienda}
+  spring.datasource.username=${DB_USERNAME}
+  spring.datasource.password=${DB_PASSWORD}
+  
+  # Connection pool
+  spring.datasource.hikari.maximum-pool-size=10
+  spring.datasource.hikari.minimum-idle=5
+  spring.datasource.hikari.connection-timeout=30000
+  
+  # JPA/Hibernate - production settings
+  spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQLDialect
+  spring.jpa.hibernate.ddl-auto=validate
+  spring.jpa.show-sql=false
+  spring.jpa.properties.hibernate.format_sql=false
+  
+  # Logging
+  logging.level.root=WARN
+  logging.level.org.jchilon3mas=INFO
+  
+  # Semantic service
+  microservicio.semantica.url=${SEMANTIC_SERVICE_URL:http://semantic-service:8081/api/v1/grafo}
+  ```
+  
+  Run with:
+  ```bash
+  java -jar svc-envio-encomienda.jar --spring.profiles.active=prod
+  ```
+</Accordion>
+
+### svc-web-semantica Configuration
+
+**File**: `svc-web-semantica/src/main/resources/application.properties`  
+**Source**: svc-web-semantica/src/main/resources/application.properties:1
+
+<Accordion title="Default Configuration">
+  ```properties
+  spring.application.name=web-semantica
+  server.port=8081
+  # Ruta donde Jena guardará los datos. Se creará en la raíz del proyecto.
+  jena.tdb.directory=tdb_data
+  ```
+</Accordion>
+
+#### Configuration Properties Explained
+
+<Accordion title="TDB Storage">
+  **jena.tdb.directory**
+  - Directory for Apache Jena TDB (triple store database)
+  - Default: `tdb_data` (relative to application root)
+  - Stores RDF triples persistently
+  
+  <Note>
+    The TDB directory will be created automatically if it doesn't exist.
+  </Note>
+  
+  **Production**: Use absolute path:
+  ```properties
+  jena.tdb.directory=/var/lib/semantic-web/tdb_data
+  ```
+</Accordion>
+
+---
+
+## Building the Application
+
+### Build Both Services
+
+From the project root directory:
+
+```bash
+mvn clean package -DskipTests
+```
+
+This creates:
+- `svc-envio-encomienda/target/svc-envio-encomienda-0.0.1-SNAPSHOT.jar`
+- `svc-web-semantica/target/svc-web-semantica-0.0.1-SNAPSHOT.jar`
+
+### Build Individual Service
+
+```bash
+cd svc-envio-encomienda
+mvn clean package -DskipTests
+
+cd ../svc-web-semantica
+mvn clean package -DskipTests
+```
+
+<Accordion title="Maven Build Configuration">
+  The `pom.xml` (svc-envio-encomienda/pom.xml:84) includes:
+  
+  - **Spring Boot Maven Plugin** - Creates executable JAR
+  - **Lombok Processor** - Annotation processing
+  - **Java Compiler** - Targets Java 25
+  
+  Key dependencies:
+  - Spring Boot Starter Data JPA
+  - Spring Boot Starter Web
+  - Spring Boot Starter Validation
+  - Spring Cloud OpenFeign
+  - MySQL Connector
+  - Lombok
+</Accordion>
+
+---
+
+## Running the Services
+
+### Development Mode
+
+#### Option 1: Using Maven (recommended for development)
+
+Terminal 1 - Semantic Web Service:
+```bash
+cd svc-web-semantica
+mvn spring-boot:run
+```
+
+Terminal 2 - Envio Encomienda Service:
+```bash
+cd svc-envio-encomienda
+mvn spring-boot:run
+```
+
+#### Option 2: Using JAR files
+
+Terminal 1:
+```bash
+java -jar svc-web-semantica/target/svc-web-semantica-0.0.1-SNAPSHOT.jar
+```
+
+Terminal 2:
+```bash
+java -jar svc-envio-encomienda/target/svc-envio-encomienda-0.0.1-SNAPSHOT.jar
+```
+
+### Production Deployment
+
+#### Using systemd (Linux)
+
+<Accordion title="Service File: /etc/systemd/system/svc-envio-encomienda.service">
+  ```ini
+  [Unit]
+  Description=Envio Encomienda Service
+  After=mysql.service
+  Requires=mysql.service
+  
+  [Service]
+  Type=simple
+  User=appuser
+  WorkingDirectory=/opt/envio-encomienda
+  ExecStart=/usr/bin/java -jar \
+    -Dspring.profiles.active=prod \
+    -Xms512m -Xmx1024m \
+    /opt/envio-encomienda/svc-envio-encomienda.jar
+  
+  Restart=always
+  RestartSec=10
+  StandardOutput=journal
+  StandardError=journal
+  
+  # Environment variables
+  Environment="DB_URL=jdbc:mysql://localhost:3306/bd_envio_encomienda"
+  Environment="DB_USERNAME=envio_user"
+  Environment="DB_PASSWORD=secure_password"
+  Environment="SEMANTIC_SERVICE_URL=http://localhost:8081/api/v1/grafo"
+  
+  [Install]
+  WantedBy=multi-user.target
+  ```
+  
+  Enable and start:
+  ```bash
+  sudo systemctl daemon-reload
+  sudo systemctl enable svc-envio-encomienda
+  sudo systemctl start svc-envio-encomienda
+  sudo systemctl status svc-envio-encomienda
+  ```
+</Accordion>
+
+<Accordion title="Service File: /etc/systemd/system/svc-web-semantica.service">
+  ```ini
+  [Unit]
+  Description=Web Semantica Service
+  After=network.target
+  
+  [Service]
+  Type=simple
+  User=appuser
+  WorkingDirectory=/opt/web-semantica
+  ExecStart=/usr/bin/java -jar \
+    -Xms256m -Xmx512m \
+    /opt/web-semantica/svc-web-semantica.jar
+  
+  Restart=always
+  RestartSec=10
+  StandardOutput=journal
+  StandardError=journal
+  
+  Environment="JENA_TDB_DIRECTORY=/var/lib/semantic-web/tdb_data"
+  
+  [Install]
+  WantedBy=multi-user.target
+  ```
+  
+  Enable and start:
+  ```bash
+  sudo systemctl daemon-reload
+  sudo systemctl enable svc-web-semantica
+  sudo systemctl start svc-web-semantica
+  sudo systemctl status svc-web-semantica
+  ```
+</Accordion>
+
+#### Using Docker
+
+<Accordion title="Dockerfile - svc-envio-encomienda">
+  ```dockerfile
+  FROM eclipse-temurin:25-jdk-alpine
+  
+  WORKDIR /app
+  
+  COPY target/svc-envio-encomienda-0.0.1-SNAPSHOT.jar app.jar
+  
+  EXPOSE 8080
+  
+  ENTRYPOINT ["java", "-jar", "app.jar"]
+  ```
+  
+  Build and run:
+  ```bash
+  docker build -t envio-encomienda:latest -f svc-envio-encomienda/Dockerfile svc-envio-encomienda
+  
+  docker run -d \
+    --name envio-encomienda \
+    -p 8080:8080 \
+    -e DB_URL=jdbc:mysql://host.docker.internal:3306/bd_envio_encomienda \
+    -e DB_USERNAME=envio_user \
+    -e DB_PASSWORD=secure_password \
+    -e SEMANTIC_SERVICE_URL=http://web-semantica:8081/api/v1/grafo \
+    envio-encomienda:latest
+  ```
+</Accordion>
+
+<Accordion title="docker-compose.yml">
+  ```yaml
+  version: '3.8'
+  
+  services:
+    mysql:
+      image: mysql:8.0
+      container_name: mysql-db
+      environment:
+        MYSQL_ROOT_PASSWORD: rootpassword
+        MYSQL_DATABASE: bd_envio_encomienda
+        MYSQL_USER: envio_user
+        MYSQL_PASSWORD: secure_password
+      ports:
+        - "3306:3306"
+      volumes:
+        - mysql-data:/var/lib/mysql
+      healthcheck:
+        test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+    
+    web-semantica:
+      build:
+        context: ./svc-web-semantica
+        dockerfile: Dockerfile
+      container_name: web-semantica
+      ports:
+        - "8081:8081"
+      volumes:
+        - tdb-data:/app/tdb_data
+      environment:
+        JENA_TDB_DIRECTORY: /app/tdb_data
+    
+    envio-encomienda:
+      build:
+        context: ./svc-envio-encomienda
+        dockerfile: Dockerfile
+      container_name: envio-encomienda
+      ports:
+        - "8080:8080"
+      depends_on:
+        mysql:
+          condition: service_healthy
+        web-semantica:
+          condition: service_started
+      environment:
+        DB_URL: jdbc:mysql://mysql:3306/bd_envio_encomienda
+        DB_USERNAME: envio_user
+        DB_PASSWORD: secure_password
+        SEMANTIC_SERVICE_URL: http://web-semantica:8081/api/v1/grafo
+  
+  volumes:
+    mysql-data:
+    tdb-data:
+  ```
+  
+  Deploy:
+  ```bash
+  docker-compose up -d
+  docker-compose logs -f
+  ```
+</Accordion>
+
+---
+
+## Verification
+
+### Check Service Health
+
+```bash
+# Test semantic web service
+curl http://localhost:8081/actuator/health
+
+# Test envio encomienda service
+curl http://localhost:8080/actuator/health
+```
+
+### Verify Database Connection
+
+Check application logs:
+
+```bash
+# Maven development mode
+mvn spring-boot:run
+# Look for: "HikariPool-1 - Start completed"
+
+# Systemd
+sudo journalctl -u svc-envio-encomienda -f
+
+# Docker
+docker logs -f envio-encomienda
+```
+
+<Note>
+  Successful startup should show Hibernate creating tables and Tomcat starting on ports 8080/8081.
+</Note>
+
+### Test API Endpoints
+
+```bash
+# Create a test cliente
+curl -X POST http://localhost:8080/api/clientes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "dni": "12345678",
+    "nombreCompleto": "Juan Pérez",
+    "correo": "juan@example.com",
+    "telefono": "987654321"
+  }'
+
+# Query semantic endpoint
+curl http://localhost:8081/api/v1/grafo/envios
+```
+
+---
+
+## Troubleshooting
+
+<Accordion title="MySQL Connection Refused">
+  **Error**: `Communications link failure`
+  
+  **Solutions**:
+  1. Verify MySQL is running:
+     ```bash
+     sudo systemctl status mysql
+     ```
+  
+  2. Check MySQL is listening on 3306:
+     ```bash
+     netstat -tuln | grep 3306
+     ```
+  
+  3. Verify credentials:
+     ```bash
+     mysql -u envio_user -p bd_envio_encomienda
+     ```
+  
+  4. Check firewall rules (if remote MySQL)
+</Accordion>
+
+<Accordion title="Port Already in Use">
+  **Error**: `Port 8080 already in use`
+  
+  **Solutions**:
+  1. Find process using port:
+     ```bash
+     lsof -i :8080
+     # or
+     netstat -tuln | grep 8080
+     ```
+  
+  2. Kill process:
+     ```bash
+     kill -9 <PID>
+     ```
+  
+  3. Change port in application.properties:
+     ```properties
+     server.port=8082
+     ```
+</Accordion>
+
+<Accordion title="TDB Directory Permission Denied">
+  **Error**: Cannot write to `tdb_data`
+  
+  **Solutions**:
+  1. Create directory with proper permissions:
+     ```bash
+     sudo mkdir -p /var/lib/semantic-web/tdb_data
+     sudo chown appuser:appuser /var/lib/semantic-web/tdb_data
+     sudo chmod 755 /var/lib/semantic-web/tdb_data
+     ```
+  
+  2. Or use relative path in working directory:
+     ```properties
+     jena.tdb.directory=./tdb_data
+     ```
+</Accordion>
+
+<Accordion title="Java Version Mismatch">
+  **Error**: `Unsupported class file major version 69`
+  
+  **Solution**: Ensure Java 25 is installed and active:
+  ```bash
+  java -version
+  # Must show version 25
+  
+  # Update JAVA_HOME
+  export JAVA_HOME=/path/to/jdk-25
+  export PATH=$JAVA_HOME/bin:$PATH
+  ```
+</Accordion>
+
+---
+
+## Performance Tuning
+
+### JVM Options
+
+<Accordion title="Production JVM Settings">
+  ```bash
+  java -jar \
+    -Xms1024m \
+    -Xmx2048m \
+    -XX:+UseG1GC \
+    -XX:MaxGCPauseMillis=200 \
+    -XX:+HeapDumpOnOutOfMemoryError \
+    -XX:HeapDumpPath=/var/log/heapdump.hprof \
+    svc-envio-encomienda.jar
+  ```
+  
+  **Options explained**:
+  - `-Xms1024m` - Initial heap size
+  - `-Xmx2048m` - Maximum heap size
+  - `-XX:+UseG1GC` - Use G1 garbage collector
+  - `-XX:MaxGCPauseMillis=200` - Target max GC pause time
+  - `-XX:+HeapDumpOnOutOfMemoryError` - Create dump on OOM
+</Accordion>
+
+### Database Connection Pool
+
+Add to application.properties:
+
+```properties
+# HikariCP configuration
+spring.datasource.hikari.maximum-pool-size=20
+spring.datasource.hikari.minimum-idle=10
+spring.datasource.hikari.connection-timeout=30000
+spring.datasource.hikari.idle-timeout=600000
+spring.datasource.hikari.max-lifetime=1800000
+```
+
+---
+
+## Security Considerations
+
+<Warning>
+  **Production Security Checklist**:
+  
+  - ✓ Use environment variables for sensitive data
+  - ✓ Create dedicated database user with minimal privileges
+  - ✓ Enable SSL/TLS for database connections
+  - ✓ Use HTTPS for service communication
+  - ✓ Implement authentication/authorization (Spring Security)
+  - ✓ Configure firewall rules
+  - ✓ Regular security updates
+  - ✓ Monitor logs for suspicious activity
+</Warning>
+
+### Environment Variables Setup
+
+```bash
+# Linux/macOS
+export DB_PASSWORD="secure_password"
+export JWT_SECRET="your-secret-key"
+
+# Windows
+set DB_PASSWORD=secure_password
+set JWT_SECRET=your-secret-key
+
+# Or use .env file with docker-compose
+# Create .env:
+DB_PASSWORD=secure_password
+JWT_SECRET=your-secret-key
+```
+
+---
+
+## Monitoring and Logging
+
+### Enable Spring Boot Actuator
+
+Add to `pom.xml`:
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+```
+
+Configure in application.properties:
+
+```properties
+management.endpoints.web.exposure.include=health,info,metrics
+management.endpoint.health.show-details=when-authorized
+```
+
+Access metrics:
+
+```bash
+curl http://localhost:8080/actuator/metrics
+curl http://localhost:8080/actuator/health
+```
+
+### Logging Configuration
+
+```properties
+# Logging levels
+logging.level.root=INFO
+logging.level.org.jchilon3mas=DEBUG
+logging.level.org.hibernate.SQL=DEBUG
+logging.level.org.hibernate.type.descriptor.sql.BasicBinder=TRACE
+
+# Log file
+logging.file.name=/var/log/envio-encomienda/application.log
+logging.file.max-size=10MB
+logging.file.max-history=30
+```
+
+---
+
+## Related Documentation
+
+- [Data Model Reference](/resources/data-model) - Entity definitions
+- [Error Handling](/resources/error-handling) - Exception handling
+- [Ontology Reference](/resources/ontology-reference) - RDF/OWL ontology

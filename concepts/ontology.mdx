@@ -1,0 +1,498 @@
+---
+title: 'Ontology Reference'
+description: 'Complete documentation of the encomiendas.ttl OWL ontology structure'
+---
+
+The `encomiendas.ttl` ontology defines the semantic structure for the package shipping system. It specifies classes, properties, and relationships using OWL (Web Ontology Language).
+
+## Ontology Overview
+
+**File Location:** `svc-web-semantica/src/main/resources/encomiendas.ttl`
+
+**Namespace:** `http://www.encomiendas.com/ontologia#`
+
+**Prefix:** `enc:`
+
+```turtle
+<http://www.encomiendas.com/ontologia#> a owl:Ontology ;
+    rdfs:label   "Ontología de Envíos y Encomiendas"@es ;
+    rdfs:comment "Ontología OWL para el sistema de gestión de envíos y encomiendas entre sucursales."@es .
+```
+
+## Class Hierarchy
+
+### Main Classes
+
+The ontology defines four main classes representing core domain entities:
+
+```turtle
+enc:Cliente a owl:Class ;
+    rdfs:label   "Cliente"@es ;
+    rdfs:comment "Persona natural que actúa como remitente de un envío."@es .
+
+enc:Envio a owl:Class ;
+    rdfs:label   "Envío"@es ;
+    rdfs:comment "Traslado de una encomienda desde una sucursal de origen a una de destino."@es .
+
+enc:Encomienda a owl:Class ;
+    rdfs:label   "Encomienda"@es ;
+    rdfs:comment "Paquete o bulto físico que forma parte de un envío."@es .
+
+enc:Sucursal a owl:Class ;
+    rdfs:label   "Sucursal"@es ;
+    rdfs:comment "Punto físico de la empresa donde se reciben y entregan encomiendas."@es .
+```
+
+### Shipment Subclasses
+
+Specialized shipment types inherit from `enc:Envio`:
+
+```turtle
+enc:EnvioUrgente a owl:Class ;
+    rdfs:label      "Envío Urgente"@es ;
+    rdfs:comment    "Envío con prioridad de entrega inmediata."@es ;
+    rdfs:subClassOf enc:Envio .
+
+enc:EnvioFragil a owl:Class ;
+    rdfs:label      "Envío Frágil"@es ;
+    rdfs:comment    "Envío que contiene objetos delicados y requiere manejo especial."@es ;
+    rdfs:subClassOf enc:Envio .
+
+enc:EnvioPesado a owl:Class ;
+    rdfs:label      "Envío Pesado"@es ;
+    rdfs:comment    "Envío cuyo peso supera los 20 kg y requiere transporte especial."@es ;
+    rdfs:subClassOf enc:Envio .
+```
+
+<Note>
+  These subclasses are defined but not yet automatically inferred. Future enhancement: Use OWL reasoning to classify shipments > 20kg as `EnvioPesado`.
+</Note>
+
+### Disjoint Classes
+
+These constraints prevent logical inconsistencies:
+
+```turtle
+enc:Cliente   owl:disjointWith enc:Envio .
+enc:Cliente   owl:disjointWith enc:Sucursal .
+enc:Cliente   owl:disjointWith enc:Encomienda .
+enc:Envio     owl:disjointWith enc:Sucursal .
+enc:Envio     owl:disjointWith enc:Encomienda .
+enc:Sucursal  owl:disjointWith enc:Encomienda .
+```
+
+**Meaning:** A resource cannot be an instance of multiple disjoint classes. For example, a `Cliente` cannot also be an `Envio`.
+
+## Object Properties
+
+Object properties define relationships between resources.
+
+### Client-Shipment Relationship
+
+```turtle
+enc:realizaEnvio a owl:ObjectProperty ;
+    rdfs:label   "realiza envío"@es ;
+    rdfs:comment "Relación entre un cliente remitente y su envío."@es ;
+    rdfs:domain  enc:Cliente ;
+    rdfs:range   enc:Envio .
+
+enc:esRealizadoPor a owl:ObjectProperty ;
+    rdfs:label   "es realizado por"@es ;
+    rdfs:comment "Inversa inferida: el envío pertenece a un cliente remitente."@es ;
+    owl:inverseOf enc:realizaEnvio ;
+    rdfs:domain  enc:Envio ;
+    rdfs:range   enc:Cliente .
+```
+
+**Usage Example:**
+
+```turtle
+<http://www.encomiendas.com/cliente/12345678> enc:realizaEnvio <http://www.encomiendas.com/envio/ENV-1234567890> .
+
+# Automatically inferred:
+<http://www.encomiendas.com/envio/ENV-1234567890> enc:esRealizadoPor <http://www.encomiendas.com/cliente/12345678> .
+```
+
+<Note>
+  `owl:inverseOf` enables bidirectional navigation between clients and shipments.
+</Note>
+
+## Datatype Properties
+
+Datatype properties connect resources to literal values (strings, numbers, dates).
+
+### Client Properties
+
+```turtle
+enc:tieneNombre a owl:DatatypeProperty ;
+    rdfs:label   "tiene nombre"@es ;
+    rdfs:comment "Nombre completo del cliente remitente."@es ;
+    rdfs:domain  enc:Cliente ;
+    rdfs:range   xsd:string .
+
+enc:tieneDni a owl:DatatypeProperty, owl:FunctionalProperty ;
+    rdfs:label   "tiene DNI"@es ;
+    rdfs:comment "Documento Nacional de Identidad del cliente (8 dígitos, único)."@es ;
+    rdfs:domain  enc:Cliente ;
+    rdfs:range   xsd:string .
+
+enc:tieneTelefono a owl:DatatypeProperty ;
+    rdfs:label   "tiene teléfono"@es ;
+    rdfs:comment "Número de teléfono de contacto del cliente (9 dígitos)."@es ;
+    rdfs:domain  enc:Cliente ;
+    rdfs:range   xsd:string .
+
+enc:tieneCorreo a owl:DatatypeProperty ;
+    rdfs:label   "tiene correo"@es ;
+    rdfs:comment "Correo electrónico del cliente."@es ;
+    rdfs:domain  enc:Cliente ;
+    rdfs:range   xsd:string .
+```
+
+### Shipment Core Properties
+
+```turtle
+enc:codigoSeguimiento a owl:DatatypeProperty, owl:FunctionalProperty ;
+    rdfs:label   "código de seguimiento"@es ;
+    rdfs:comment "Código único de rastreo del envío. Formato: ENV-{timestamp}."@es ;
+    rdfs:domain  enc:Envio ;
+    rdfs:range   xsd:string .
+
+enc:tieneEstado a owl:DatatypeProperty, owl:FunctionalProperty ;
+    rdfs:label   "tiene estado"@es ;
+    rdfs:comment "Estado actual del envío: PENDIENTE, EN_TRANSITO, DISPONIBLE, ENTREGADO, CANCELADO."@es ;
+    rdfs:domain  enc:Envio ;
+    rdfs:range   xsd:string .
+
+enc:fechaEnvio a owl:DatatypeProperty ;
+    rdfs:label   "fecha de envío"@es ;
+    rdfs:comment "Fecha y hora en que se registró el envío."@es ;
+    rdfs:domain  enc:Envio ;
+    rdfs:range   xsd:string .
+
+enc:fechaEntrega a owl:DatatypeProperty ;
+    rdfs:label   "fecha de entrega"@es ;
+    rdfs:comment "Fecha y hora en que se entregó el paquete al destinatario."@es ;
+    rdfs:domain  enc:Envio ;
+    rdfs:range   xsd:string .
+```
+
+<Warning>
+  `owl:FunctionalProperty` means each resource can have at most ONE value for this property. A shipment has exactly one tracking code and one state at any time.
+</Warning>
+
+### Package Details Properties
+
+```turtle
+enc:contienePaquete a owl:DatatypeProperty ;
+    rdfs:label   "contiene paquete"@es ;
+    rdfs:comment "Descripción del contenido de la encomienda."@es ;
+    rdfs:domain  enc:Envio ;
+    rdfs:range   xsd:string .
+
+enc:tienePesoKg a owl:DatatypeProperty ;
+    rdfs:label   "tiene peso (kg)"@es ;
+    rdfs:comment "Peso de la encomienda expresado en kilogramos."@es ;
+    rdfs:domain  enc:Envio ;
+    rdfs:range   xsd:decimal .
+
+enc:tieneDimensiones a owl:DatatypeProperty ;
+    rdfs:label   "tiene dimensiones"@es ;
+    rdfs:comment "Dimensiones del paquete en formato LxAxH (cm). Ej: 10x20x30."@es ;
+    rdfs:domain  enc:Envio ;
+    rdfs:range   xsd:string .
+
+enc:tienePrecio a owl:DatatypeProperty ;
+    rdfs:label   "tiene precio"@es ;
+    rdfs:comment "Costo total del servicio de envío en soles (S/)."@es ;
+    rdfs:domain  enc:Envio ;
+    rdfs:range   xsd:string .
+```
+
+### Transport Properties
+
+```turtle
+enc:placaVehiculo a owl:DatatypeProperty ;
+    rdfs:label   "placa de vehículo"@es ;
+    rdfs:comment "Placa del vehículo asignado para transportar el envío."@es ;
+    rdfs:domain  enc:Envio ;
+    rdfs:range   xsd:string .
+
+enc:transportadoPor a owl:DatatypeProperty ;
+    rdfs:label   "transportado por"@es ;
+    rdfs:comment "Nombre del conductor o empresa encargada del transporte."@es ;
+    rdfs:domain  enc:Envio ;
+    rdfs:range   xsd:string .
+```
+
+### Recipient Properties
+
+```turtle
+enc:nombreDestinatario a owl:DatatypeProperty ;
+    rdfs:label   "nombre del destinatario"@es ;
+    rdfs:comment "Nombre completo de la persona que recibirá el paquete."@es ;
+    rdfs:domain  enc:Envio ;
+    rdfs:range   xsd:string .
+
+enc:dniDestinatario a owl:DatatypeProperty ;
+    rdfs:label   "DNI del destinatario"@es ;
+    rdfs:comment "Documento de identidad de quien retira el paquete."@es ;
+    rdfs:domain  enc:Envio ;
+    rdfs:range   xsd:string .
+```
+
+### Location Properties
+
+```turtle
+enc:origenEn a owl:DatatypeProperty ;
+    rdfs:label   "ciudad de origen"@es ;
+    rdfs:comment "Ciudad desde donde se despacha el envío."@es ;
+    rdfs:domain  enc:Envio ;
+    rdfs:range   xsd:string .
+
+enc:destinoEn a owl:DatatypeProperty ;
+    rdfs:label   "ciudad de destino"@es ;
+    rdfs:comment "Ciudad hacia donde se dirige el envío."@es ;
+    rdfs:domain  enc:Envio ;
+    rdfs:range   xsd:string .
+
+enc:sucursalOrigen a owl:DatatypeProperty ;
+    rdfs:label   "sucursal de origen"@es ;
+    rdfs:comment "Nombre de la sucursal desde donde se despacha el envío."@es ;
+    rdfs:domain  enc:Envio ;
+    rdfs:range   xsd:string .
+
+enc:entregarEnSucursal a owl:DatatypeProperty ;
+    rdfs:label   "sucursal de destino"@es ;
+    rdfs:comment "Nombre de la sucursal donde el destinatario retirará el paquete."@es ;
+    rdfs:domain  enc:Envio ;
+    rdfs:range   xsd:string .
+```
+
+## Property Characteristics
+
+### Functional Properties
+
+These properties can have at most ONE value per resource:
+
+- `enc:tieneDni` - One DNI per client
+- `enc:codigoSeguimiento` - One tracking code per shipment
+- `enc:tieneEstado` - One state per shipment at a time
+
+### Non-Functional Properties
+
+These can have multiple values:
+
+- `enc:tieneNombre` - Could have multiple names (though not used that way)
+- `enc:realizaEnvio` - A client can make multiple shipments
+
+## Complete Shipment Example
+
+Here's a full RDF representation of a shipment in the system:
+
+```turtle
+@prefix enc:  <http://www.encomiendas.com/ontologia#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+# Client
+<http://www.encomiendas.com/cliente/12345678> a enc:Cliente ;
+    enc:tieneNombre "Juan Pérez" ;
+    enc:tieneDni "12345678" ;
+    enc:tieneTelefono "987654321" ;
+    enc:tieneCorreo "juan.perez@example.com" ;
+    enc:realizaEnvio <http://www.encomiendas.com/envio/ENV-1710334200000> .
+
+# Shipment
+<http://www.encomiendas.com/envio/ENV-1710334200000> a enc:Envio ;
+    enc:codigoSeguimiento "ENV-1710334200000" ;
+    enc:tieneEstado "EN_TRANSITO" ;
+    enc:contienePaquete "Laptop Dell XPS 15" ;
+    enc:tienePesoKg "2.5"^^xsd:decimal ;
+    enc:tieneDimensiones "40x30x10" ;
+    enc:tienePrecio "35.50" ;
+    enc:nombreDestinatario "María García" ;
+    enc:dniDestinatario "87654321" ;
+    enc:origenEn "Cajamarca" ;
+    enc:destinoEn "Lima" ;
+    enc:sucursalOrigen "Sucursal Centro Cajamarca" ;
+    enc:entregarEnSucursal "Sucursal Miraflores Lima" ;
+    enc:fechaEnvio "2026-03-09T10:30:00" ;
+    enc:placaVehiculo "ABC-123" ;
+    enc:esRealizadoPor <http://www.encomiendas.com/cliente/12345678> .
+```
+
+## Querying the Ontology
+
+### Find All Properties of a Class
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?property ?label ?comment
+WHERE {
+    ?property rdfs:domain enc:Envio .
+    OPTIONAL { ?property rdfs:label ?label }
+    OPTIONAL { ?property rdfs:comment ?comment }
+}
+```
+
+### Find All Subclasses
+
+```sparql
+PREFIX enc: <http://www.encomiendas.com/ontologia#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?subclass ?label
+WHERE {
+    ?subclass rdfs:subClassOf enc:Envio .
+    ?subclass rdfs:label ?label .
+}
+```
+
+## Design Decisions
+
+### Why Datatype Properties Instead of Object Properties for Locations?
+
+Currently, `enc:origenEn` and `enc:destinoEn` use `xsd:string` instead of linking to `enc:Sucursal` resources.
+
+**Current:**
+```turtle
+?envio enc:destinoEn "Lima" .
+```
+
+**Alternative (more semantic):**
+```turtle
+?envio enc:entregaEn <http://www.encomiendas.com/sucursal/1> .
+<http://www.encomiendas.com/sucursal/1> a enc:Sucursal ;
+    enc:tieneCiudad "Lima" ;
+    enc:tieneNombre "Sucursal Miraflores" .
+```
+
+<Note>
+  Future enhancement: Convert city/branch references to object properties for richer relationship modeling.
+</Note>
+
+### Why String for Estado Instead of Named Individuals?
+
+**Current:**
+```turtle
+?envio enc:tieneEstado "PENDIENTE" .
+```
+
+**Alternative:**
+```turtle
+enc:EstadoPendiente a enc:EstadoEnvio .
+?envio enc:tieneEstado enc:EstadoPendiente .
+```
+
+**Reason:** Simplicity. The current approach mirrors the Java enum and is easier to query with simple string matching.
+
+## Extending the Ontology
+
+To add new properties or classes:
+
+<Steps>
+  <Step title="Edit encomiendas.ttl">
+    Add your new definitions:
+
+    ```turtle
+    enc:tieneSeguro a owl:DatatypeProperty ;
+        rdfs:label "tiene seguro"@es ;
+        rdfs:domain enc:Envio ;
+        rdfs:range xsd:boolean .
+    ```
+  </Step>
+
+  <Step title="Restart semantic service">
+    The ontology is loaded on startup. Restart to load changes.
+  </Step>
+
+  <Step title="Update DTOs and services">
+    Modify `EnvioSemanticoDTO` and `SemanticService` to include new properties.
+  </Step>
+
+  <Step title="Sync existing data">
+    Use bulk sync endpoint to update existing shipments:
+
+    ```bash
+    curl -X POST http://localhost:8080/api/v1/envios/sincronizar-todos
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+  Changing property URIs or removing properties can break existing SPARQL queries. Plan changes carefully.
+</Warning>
+
+## Validation
+
+The current system doesn't use formal validation, but you could add SHACL shapes:
+
+```turtle
+enc:EnvioShape a sh:NodeShape ;
+    sh:targetClass enc:Envio ;
+    sh:property [
+        sh:path enc:codigoSeguimiento ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:pattern "^ENV-[0-9]+$" ;
+    ] ;
+    sh:property [
+        sh:path enc:tienePesoKg ;
+        sh:datatype xsd:decimal ;
+        sh:minInclusive 0.1 ;
+        sh:maxInclusive 1000.0 ;
+    ] .
+```
+
+## Property Summary Table
+
+### Client Properties
+
+| Property | Domain | Range | Functional | Description |
+|----------|--------|-------|------------|-------------|
+| `enc:tieneNombre` | `Cliente` | `xsd:string` | No | Full name |
+| `enc:tieneDni` | `Cliente` | `xsd:string` | Yes | 8-digit DNI |
+| `enc:tieneTelefono` | `Cliente` | `xsd:string` | No | 9-digit phone |
+| `enc:tieneCorreo` | `Cliente` | `xsd:string` | No | Email address |
+| `enc:realizaEnvio` | `Cliente` | `Envio` | No | Shipment relationship |
+
+### Shipment Properties
+
+| Property | Domain | Range | Functional | Description |
+|----------|--------|-------|------------|-------------|
+| `enc:codigoSeguimiento` | `Envio` | `xsd:string` | Yes | Tracking code |
+| `enc:tieneEstado` | `Envio` | `xsd:string` | Yes | State |
+| `enc:contienePaquete` | `Envio` | `xsd:string` | No | Contents description |
+| `enc:tienePesoKg` | `Envio` | `xsd:decimal` | No | Weight in kg |
+| `enc:tieneDimensiones` | `Envio` | `xsd:string` | No | LxWxH format |
+| `enc:tienePrecio` | `Envio` | `xsd:string` | No | Price in soles |
+| `enc:fechaEnvio` | `Envio` | `xsd:string` | No | Send date |
+| `enc:fechaEntrega` | `Envio` | `xsd:string` | No | Delivery date |
+| `enc:nombreDestinatario` | `Envio` | `xsd:string` | No | Recipient name |
+| `enc:dniDestinatario` | `Envio` | `xsd:string` | No | Recipient DNI |
+| `enc:origenEn` | `Envio` | `xsd:string` | No | Origin city |
+| `enc:destinoEn` | `Envio` | `xsd:string` | No | Destination city |
+| `enc:sucursalOrigen` | `Envio` | `xsd:string` | No | Origin branch |
+| `enc:entregarEnSucursal` | `Envio` | `xsd:string` | No | Destination branch |
+| `enc:placaVehiculo` | `Envio` | `xsd:string` | No | Vehicle plate |
+| `enc:transportadoPor` | `Envio` | `xsd:string` | No | Carrier name |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Semantic Web Concepts" icon="brain" href="/concepts/semantic-web">
+    Understand RDF, OWL, and SPARQL
+  </Card>
+  <Card title="SPARQL Queries" icon="code" href="/guides/sparql-queries">
+    Write queries using this ontology
+  </Card>
+  <Card title="Shipment Lifecycle" icon="rotate" href="/concepts/shipment-lifecycle">
+    Understand state transitions
+  </Card>
+  <Card title="Architecture" icon="diagram-project" href="/architecture">
+    See how the ontology is used
+  </Card>
+</CardGroup>

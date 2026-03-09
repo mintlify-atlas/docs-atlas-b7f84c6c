@@ -1,0 +1,153 @@
+---
+title: 'Branch Office API Overview'
+description: 'Overview of branch office (sucursal) management endpoints'
+---
+
+## Base URL
+
+All branch office endpoints are available at:
+
+```
+http://localhost:8080/api/v1/sucursales
+```
+
+## Available Endpoints
+
+The Branch Office Service provides functionality for managing branch locations:
+
+### Branch Operations
+- **GET /api/v1/sucursales** - List all branch offices
+- **GET /api/v1/sucursales/{id}** - Get branch office by ID
+- **POST /api/v1/sucursales** - Create a new branch office
+
+## Branch Office Object Structure
+
+Branch offices are represented with the following fields:
+
+```json
+{
+  "id": 1,
+  "codigoSucursal": "LIM-001",
+  "nombreSucursal": "Lima Centro",
+  "direccion": "Av. Abancay 123",
+  "ciudad": "Lima"
+}
+```
+
+<ParamField body="id" type="number">
+  Unique branch identifier (auto-generated)
+</ParamField>
+
+<ParamField body="codigoSucursal" type="string">
+  Branch code (e.g., "LIM-001", "CUS-001")
+</ParamField>
+
+<ParamField body="nombreSucursal" type="string">
+  Branch office name
+</ParamField>
+
+<ParamField body="direccion" type="string">
+  Physical address of the branch
+</ParamField>
+
+<ParamField body="ciudad" type="string">
+  City where the branch is located
+</ParamField>
+
+## Usage in Shipments
+
+Branch offices are referenced in shipment creation:
+
+- **sucursalOrigenId** - Origin branch where the package is dropped off
+- **sucursalDestinoId** - Destination branch where the package will be picked up
+
+## Example: List All Branches
+
+```bash
+curl -X GET http://localhost:8080/api/v1/sucursales
+```
+
+Response:
+
+```json
+[
+  {
+    "id": 1,
+    "codigoSucursal": "LIM-001",
+    "nombreSucursal": "Lima Centro",
+    "direccion": "Av. Abancay 123",
+    "ciudad": "Lima"
+  },
+  {
+    "id": 2,
+    "codigoSucursal": "CUS-001",
+    "nombreSucursal": "Cusco Principal",
+    "direccion": "Av. El Sol 456",
+    "ciudad": "Cusco"
+  },
+  {
+    "id": 3,
+    "codigoSucursal": "AQP-001",
+    "nombreSucursal": "Arequipa Centro",
+    "direccion": "Calle Mercaderes 789",
+    "ciudad": "Arequipa"
+  }
+]
+```
+
+## Example: Get Branch by ID
+
+```bash
+curl -X GET http://localhost:8080/api/v1/sucursales/1
+```
+
+Response:
+
+```json
+{
+  "id": 1,
+  "codigoSucursal": "LIM-001",
+  "nombreSucursal": "Lima Centro",
+  "direccion": "Av. Abancay 123",
+  "ciudad": "Lima"
+}
+```
+
+## Example: Create Branch Office
+
+```bash
+curl -X POST http://localhost:8080/api/v1/sucursales \
+  -H "Content-Type: application/json" \
+  -d '{
+    "codigoSucursal": "TRU-001",
+    "nombreSucursal": "Trujillo Norte",
+    "direccion": "Av. España 321",
+    "ciudad": "Trujillo"
+  }'
+```
+
+Response:
+
+```json
+{
+  "id": 4,
+  "codigoSucursal": "TRU-001",
+  "nombreSucursal": "Trujillo Norte",
+  "direccion": "Av. España 321",
+  "ciudad": "Trujillo"
+}
+```
+
+<Note>
+Branch offices must be created before they can be used as origin or destination in shipments.
+</Note>
+
+## Branch Code Convention
+
+Branch codes typically follow the pattern: `{CITY}-{NUMBER}`
+
+- `LIM-001` - Lima, branch 1
+- `CUS-001` - Cusco, branch 1
+- `AQP-001` - Arequipa, branch 1
+
+This convention helps with quick identification of branch locations.

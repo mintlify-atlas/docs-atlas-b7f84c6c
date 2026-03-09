@@ -1,0 +1,442 @@
+---
+title: 'Error Handling'
+description: 'Exception classes and error response documentation'
+---
+
+# Error Handling
+
+This page documents the exception handling strategy and custom exception classes in the shipping system microservices.
+
+## Exception Hierarchy
+
+The `svc-envio-encomienda` service defines custom runtime exceptions for domain-specific error scenarios:
+
+```
+RuntimeException
+├── ClienteNotFoundException
+├── EnvioNotFoundException
+└── InvalidStateTransitionException
+```
+
+All custom exceptions extend `RuntimeException`, making them unchecked exceptions that don't require explicit declaration in method signatures.
+
+---
+
+## Exception Classes
+
+### ClienteNotFoundException
+
+**Package**: `org.jchilon3mas.springcloud.svc.envio.encomienda.excepciones`  
+**Source**: svc-envio-encomienda/src/main/java/org/jchilon3mas/springcloud/svc/envio/encomienda/excepciones/ClienteNotFoundException.java:3
+
+**Description**: Thrown when a requested customer cannot be found in the database.
+
+<Accordion title="Class Definition">
+  ```java
+  package org.jchilon3mas.springcloud.svc.envio.encomienda.excepciones;
+  
+  public class ClienteNotFoundException extends RuntimeException {
+      public ClienteNotFoundException(String message) {
+          super(message);
+      }
+  }
+  ```
+</Accordion>
+
+#### When This Is Thrown
+
+- Looking up a customer by ID that doesn't exist
+- Searching for a customer by DNI that isn't registered
+- Attempting to retrieve customer details for a non-existent user
+
+#### Usage Example
+
+```java
+public Cliente findClienteByDni(String dni) {
+    return clienteRepository.findByDni(dni)
+        .orElseThrow(() -> new ClienteNotFoundException(
+            "Cliente con DNI " + dni + " no encontrado"
+        ));
+}
+```
+
+<Note>
+  Typically returns HTTP 404 (Not Found) when caught by exception handlers.
+</Note>
+
+---
+
+### EnvioNotFoundException
+
+**Package**: `org.jchilon3mas.springcloud.svc.envio.encomienda.excepciones`  
+**Source**: svc-envio-encomienda/src/main/java/org/jchilon3mas/springcloud/svc/envio/encomienda/excepciones/EnvioNotFoundException.java:3
+
+**Description**: Thrown when a requested shipment cannot be found in the database.
+
+<Accordion title="Class Definition">
+  ```java
+  package org.jchilon3mas.springcloud.svc.envio.encomienda.excepciones;
+  
+  public class EnvioNotFoundException extends RuntimeException {
+      public EnvioNotFoundException(String message) {
+          super(message);
+      }
+  }
+  ```
+</Accordion>
+
+#### When This Is Thrown
+
+- Looking up a shipment by ID that doesn't exist
+- Tracking a shipment by tracking code (codigo de seguimiento) that isn't in the system
+- Attempting to update or cancel a non-existent shipment
+
+#### Usage Example
+
+```java
+public Envio findByCodigo(String codigo) {
+    return envioRepository.findByCodigoSeguimiento(codigo)
+        .orElseThrow(() -> new EnvioNotFoundException(
+            "Envío con código " + codigo + " no encontrado"
+        ));
+}
+```
+
+<Note>
+  Typically returns HTTP 404 (Not Found) when caught by exception handlers.
+</Note>
+
+---
+
+### InvalidStateTransitionException
+
+**Package**: `org.jchilon3mas.springcloud.svc.envio.encomienda.excepciones`  
+**Source**: svc-envio-encomienda/src/main/java/org/jchilon3mas/springcloud/svc/envio/encomienda/excepciones/InvalidStateTransitionException.java:3
+
+**Description**: Thrown when attempting an invalid state transition for a shipment.
+
+<Accordion title="Class Definition">
+  ```java
+  package org.jchilon3mas.springcloud.svc.envio.encomienda.excepciones;
+  
+  public class InvalidStateTransitionException extends RuntimeException {
+      public InvalidStateTransitionException(String message) {
+          super(message);
+      }
+  }
+  ```
+</Accordion>
+
+#### When This Is Thrown
+
+The `EstadoEnvio` enum defines five possible states:
+
+1. `PENDIENTE` - Registered, awaiting dispatch
+2. `EN_TRANSITO` - In transit to destination
+3. `DISPONIBLE` - Available for pickup at destination
+4. `ENTREGADO` - Successfully delivered
+5. `CANCELADO` - Shipment cancelled
+
+**Invalid Transitions** (examples):
+
+- Attempting to mark as `ENTREGADO` from `PENDIENTE` (must go through `EN_TRANSITO` → `DISPONIBLE` first)
+- Trying to transition from `ENTREGADO` to any other state (final state)
+- Attempting to transition from `CANCELADO` to any other state (terminal state)
+- Moving backward in the state machine (e.g., `DISPONIBLE` → `EN_TRANSITO`)
+
+#### Valid State Transitions
+
+```
+PENDIENTE → EN_TRANSITO → DISPONIBLE → ENTREGADO
+    ↓            ↓             ↓
+CANCELADO    CANCELADO     CANCELADO
+```
+
+<Warning>
+  Once a shipment reaches `ENTREGADO` or `CANCELADO`, no further state changes are permitted.
+</Warning>
+
+#### Usage Example
+
+```java
+public void actualizarEstado(Long envioId, EstadoEnvio nuevoEstado) {
+    Envio envio = findById(envioId);
+    EstadoEnvio estadoActual = envio.getEstado();
+    
+    // Validate state transition
+    if (!isValidTransition(estadoActual, nuevoEstado)) {
+        throw new InvalidStateTransitionException(
+            String.format(
+                "No se puede cambiar estado de %s a %s para el envío %s",
+                estadoActual,
+                nuevoEstado,
+                envio.getCodigoSeguimiento()
+            )
+        );
+    }
+    
+    envio.setEstado(nuevoEstado);
+    envioRepository.save(envio);
+}
+
+private boolean isValidTransition(EstadoEnvio from, EstadoEnvio to) {
+    // Terminal states cannot transition
+    if (from == EstadoEnvio.ENTREGADO || from == EstadoEnvio.CANCELADO) {
+        return false;
+    }
+    
+    // Define valid transitions
+    return switch (from) {
+        case PENDIENTE -> to == EstadoEnvio.EN_TRANSITO || to == EstadoEnvio.CANCELADO;
+        case EN_TRANSITO -> to == EstadoEnvio.DISPONIBLE || to == EstadoEnvio.CANCELADO;
+        case DISPONIBLE -> to == EstadoEnvio.ENTREGADO || to == EstadoEnvio.CANCELADO;
+        default -> false;
+    };
+}
+```
+
+<Note>
+  Typically returns HTTP 400 (Bad Request) or HTTP 409 (Conflict) when caught by exception handlers.
+</Note>
+
+---
+
+## Global Exception Handling
+
+Implement a `@ControllerAdvice` to handle these exceptions globally:
+
+<Accordion title="Example Exception Handler">
+  ```java
+  package org.jchilon3mas.springcloud.svc.envio.encomienda.controller;
+  
+  import org.jchilon3mas.springcloud.svc.envio.encomienda.excepciones.*;
+  import org.springframework.http.HttpStatus;
+  import org.springframework.http.ResponseEntity;
+  import org.springframework.web.bind.annotation.ControllerAdvice;
+  import org.springframework.web.bind.annotation.ExceptionHandler;
+  import org.springframework.web.context.request.WebRequest;
+  
+  import java.time.LocalDateTime;
+  import java.util.LinkedHashMap;
+  import java.util.Map;
+  
+  @ControllerAdvice
+  public class GlobalExceptionHandler {
+  
+      @ExceptionHandler(ClienteNotFoundException.class)
+      public ResponseEntity<Object> handleClienteNotFound(
+              ClienteNotFoundException ex, 
+              WebRequest request) {
+          return buildErrorResponse(
+              ex.getMessage(),
+              HttpStatus.NOT_FOUND,
+              request
+          );
+      }
+  
+      @ExceptionHandler(EnvioNotFoundException.class)
+      public ResponseEntity<Object> handleEnvioNotFound(
+              EnvioNotFoundException ex, 
+              WebRequest request) {
+          return buildErrorResponse(
+              ex.getMessage(),
+              HttpStatus.NOT_FOUND,
+              request
+          );
+      }
+  
+      @ExceptionHandler(InvalidStateTransitionException.class)
+      public ResponseEntity<Object> handleInvalidStateTransition(
+              InvalidStateTransitionException ex, 
+              WebRequest request) {
+          return buildErrorResponse(
+              ex.getMessage(),
+              HttpStatus.BAD_REQUEST,
+              request
+          );
+      }
+  
+      private ResponseEntity<Object> buildErrorResponse(
+              String message,
+              HttpStatus status,
+              WebRequest request) {
+          
+          Map<String, Object> body = new LinkedHashMap<>();
+          body.put("timestamp", LocalDateTime.now());
+          body.put("status", status.value());
+          body.put("error", status.getReasonPhrase());
+          body.put("message", message);
+          body.put("path", request.getDescription(false).replace("uri=", ""));
+          
+          return new ResponseEntity<>(body, status);
+      }
+  }
+  ```
+</Accordion>
+
+---
+
+## Error Response Format
+
+All exceptions are converted to standardized JSON error responses:
+
+### Example Error Responses
+
+<Accordion title="404 - Cliente Not Found">
+  ```json
+  {
+    "timestamp": "2026-03-09T10:30:45",
+    "status": 404,
+    "error": "Not Found",
+    "message": "Cliente con DNI 12345678 no encontrado",
+    "path": "/api/clientes/dni/12345678"
+  }
+  ```
+</Accordion>
+
+<Accordion title="404 - Envio Not Found">
+  ```json
+  {
+    "timestamp": "2026-03-09T10:32:15",
+    "status": 404,
+    "error": "Not Found",
+    "message": "Envío con código ENV-1678901234567 no encontrado",
+    "path": "/api/envios/codigo/ENV-1678901234567"
+  }
+  ```
+</Accordion>
+
+<Accordion title="400 - Invalid State Transition">
+  ```json
+  {
+    "timestamp": "2026-03-09T10:35:20",
+    "status": 400,
+    "error": "Bad Request",
+    "message": "No se puede cambiar estado de ENTREGADO a EN_TRANSITO para el envío ENV-1678901234567",
+    "path": "/api/envios/123/estado"
+  }
+  ```
+</Accordion>
+
+---
+
+## HTTP Status Code Mapping
+
+| Exception | HTTP Status | Status Code | Use Case |
+|-----------|-------------|-------------|----------|
+| `ClienteNotFoundException` | NOT_FOUND | 404 | Customer lookup fails |
+| `EnvioNotFoundException` | NOT_FOUND | 404 | Shipment lookup fails |
+| `InvalidStateTransitionException` | BAD_REQUEST | 400 | Invalid state change attempt |
+
+<Note>
+  Consider using **409 Conflict** instead of 400 for `InvalidStateTransitionException` to better represent the nature of the error as a business logic conflict.
+</Note>
+
+---
+
+## Best Practices
+
+### 1. Descriptive Error Messages
+
+Always include context in exception messages:
+
+```java
+// Good
+throw new EnvioNotFoundException(
+    "Envío con código " + codigo + " no encontrado"
+);
+
+// Bad
+throw new EnvioNotFoundException("Not found");
+```
+
+### 2. Validation vs. State Transition Errors
+
+<Warning>
+  Use `InvalidStateTransitionException` for business logic violations, not input validation errors. Use `@Valid` and `MethodArgumentNotValidException` for request validation.
+</Warning>
+
+### 3. Logging
+
+Log exceptions at appropriate levels:
+
+```java
+@ExceptionHandler(EnvioNotFoundException.class)
+public ResponseEntity<Object> handleEnvioNotFound(
+        EnvioNotFoundException ex, 
+        WebRequest request) {
+    
+    // INFO level - expected business exception
+    log.info("Envio not found: {}", ex.getMessage());
+    
+    return buildErrorResponse(ex.getMessage(), HttpStatus.NOT_FOUND, request);
+}
+
+@ExceptionHandler(InvalidStateTransitionException.class)
+public ResponseEntity<Object> handleInvalidStateTransition(
+        InvalidStateTransitionException ex, 
+        WebRequest request) {
+    
+    // WARN level - potential security or abuse concern
+    log.warn("Invalid state transition attempt: {}", ex.getMessage());
+    
+    return buildErrorResponse(ex.getMessage(), HttpStatus.BAD_REQUEST, request);
+}
+```
+
+### 4. Security Considerations
+
+<Warning>
+  Avoid leaking sensitive information in error messages:
+  
+  - Don't expose internal IDs or database details
+  - Don't reveal whether a resource exists for unauthorized users
+  - Consider generic messages for unauthenticated requests
+</Warning>
+
+---
+
+## Testing Exception Scenarios
+
+Example unit test for exception handling:
+
+<Accordion title="Unit Test Example">
+  ```java
+  @Test
+  void testFindClienteByDni_NotFound() {
+      // Arrange
+      String dni = "12345678";
+      when(clienteRepository.findByDni(dni)).thenReturn(Optional.empty());
+      
+      // Act & Assert
+      assertThrows(
+          ClienteNotFoundException.class,
+          () -> clienteService.findByDni(dni)
+      );
+  }
+  
+  @Test
+  void testUpdateEstado_InvalidTransition() {
+      // Arrange
+      Envio envio = new Envio();
+      envio.setEstado(EstadoEnvio.ENTREGADO);
+      when(envioRepository.findById(1L)).thenReturn(Optional.of(envio));
+      
+      // Act & Assert
+      InvalidStateTransitionException ex = assertThrows(
+          InvalidStateTransitionException.class,
+          () -> envioService.actualizarEstado(1L, EstadoEnvio.EN_TRANSITO)
+      );
+      
+      assertTrue(ex.getMessage().contains("ENTREGADO"));
+      assertTrue(ex.getMessage().contains("EN_TRANSITO"));
+  }
+  ```
+</Accordion>
+
+---
+
+## Related Documentation
+
+- [Data Model Reference](/resources/data-model) - Entity definitions
+- See API documentation for endpoint-specific error scenarios

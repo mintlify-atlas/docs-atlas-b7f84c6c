@@ -1,80 +1,192 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: 'Quickstart'
+description: 'Get up and running with the semantic web package shipping system in 5 minutes'
 ---
 
-## Get started in three steps
+Get your semantic web package shipping system running in minutes. This guide walks you through setting up both microservices, creating your first shipment, and testing semantic search.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+Before you begin, ensure you have:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+- Java 17 or higher
+- MySQL 8.0+
+- Maven 3.6+
+- curl or Postman for API testing
 
-### Step 2: Deploy your changes
+## Quick Setup
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+<Steps>
+  <Step title="Start MySQL Database">
+    Create the database for the shipment service:
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+    ```sql
+    CREATE DATABASE bd_envio_encomienda;
+    ```
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+    The tables will be created automatically when you start the service.
+  </Step>
 
-### Step 3: Go live
+  <Step title="Start the Semantic Service">
+    Navigate to the semantic service directory and run:
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+    ```bash
+    cd svc-web-semantica
+    mvn spring-boot:run
+    ```
 
-## Next steps
+    The service will start on **port 8081** and create a `tdb_data/` directory for storing RDF triples.
 
-Now that you have your docs running, explore these key features:
+    <Note>
+      The semantic service must be running before the shipment service to enable automatic synchronization.
+    </Note>
+  </Step>
+
+  <Step title="Start the Shipment Service">
+    In a new terminal, navigate to the shipment service:
+
+    ```bash
+    cd svc-envio-encomienda
+    mvn spring-boot:run
+    ```
+
+    The service will start on **port 8080** and automatically:
+    - Create database tables
+    - Connect to the semantic service at `http://localhost:8081`
+  </Step>
+
+  <Step title="Create Your First Shipment">
+    Create a client first:
+
+    ```bash
+    curl -X POST http://localhost:8080/api/v1/clientes \
+      -H "Content-Type: application/json" \
+      -d '{
+        "nombreCompleto": "Juan Pérez",
+        "dni": "12345678",
+        "telefono": "987654321",
+        "correo": "juan.perez@example.com"
+      }'
+    ```
+
+    Then create a shipment (assuming client ID 1, sucursales with IDs 1 and 2 exist):
+
+    ```bash
+    curl -X POST http://localhost:8080/api/v1/envios \
+      -H "Content-Type: application/json" \
+      -d '{
+        "remitenteId": 1,
+        "encomienda": {
+          "descripcion": "Laptop Dell XPS 15",
+          "peso": 2.5,
+          "dimensiones": "40x30x10"
+        },
+        "nombreDestinatario": "María García",
+        "dniDestinatario": "87654321",
+        "sucursalOrigenId": 1,
+        "sucursalDestinoId": 2,
+        "precio": 35.50
+      }'
+    ```
+
+    <Note>
+      The tracking code is auto-generated with format `ENV-{timestamp}` and a 4-digit delivery password is created automatically.
+    </Note>
+  </Step>
+
+  <Step title="Test Semantic Search">
+    Now query using natural language:
+
+    ```bash
+    curl -X GET "http://localhost:8081/api/v1/grafo/buscar?texto=envios+pendientes"
+    ```
+
+    Try more complex queries:
+
+    ```bash
+    # Search by weight range
+    curl -X GET "http://localhost:8081/api/v1/grafo/buscar?texto=envios+entre+2+y+5+kg"
+
+    # Search by date
+    curl -X GET "http://localhost:8081/api/v1/grafo/buscar?texto=envios+de+hoy"
+
+    # Search by city
+    curl -X GET "http://localhost:8081/api/v1/grafo/buscar?texto=envios+a+Lima"
+    ```
+  </Step>
+</Steps>
+
+## What Happens Behind the Scenes
+
+When you create a shipment:
+
+1. **Shipment Service** saves the data to MySQL
+2. Automatically sends the shipment data to **Semantic Service**
+3. **Semantic Service** converts it to RDF triples using the OWL ontology
+4. Stores triples in Apache Jena TDB for semantic querying
+5. Natural language queries are translated to SPARQL and executed against the knowledge graph
+
+## State Transitions
+
+Shipments follow this lifecycle:
+
+```
+PENDIENTE → EN_TRANSITO → DISPONIBLE → ENTREGADO
+    ↓
+CANCELADO (only from PENDIENTE)
+```
+
+Update shipment states:
+
+```bash
+# Assign vehicle (PENDIENTE → EN_TRANSITO)
+curl -X POST http://localhost:8080/api/v1/envios/asignar-placa \
+  -H "Content-Type: application/json" \
+  -d '{"envioId": 1, "placa": "ABC-123"}'
+
+# Mark as available for pickup (EN_TRANSITO → DISPONIBLE)
+curl -X PUT http://localhost:8080/api/v1/envios/1/disponible
+
+# Deliver package (DISPONIBLE → ENTREGADO)
+curl -X POST http://localhost:8080/api/v1/envios/retirar \
+  -H "Content-Type: application/json" \
+  -d '{"codigoSeguimiento": "ENV-1234567890", "contrasenaEntrega": "1234"}'
+```
+
+## Next Steps
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Architecture Overview" icon="diagram-project" href="/architecture">
+    Understand how the microservices communicate
+  </Card>
+  <Card title="Semantic Search Guide" icon="magnifying-glass" href="/guides/semantic-search">
+    Master natural language queries
+  </Card>
+  <Card title="SPARQL Queries" icon="code" href="/guides/sparql-queries">
+    Write custom SPARQL queries
+  </Card>
+  <Card title="Ontology Reference" icon="book" href="/concepts/ontology">
+    Explore the OWL ontology structure
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Connection refused to semantic service">
+    Ensure the semantic service is running on port 8081 before starting the shipment service. Check the logs for connection errors.
+  </Accordion>
+
+  <Accordion title="MySQL authentication failed">
+    Update credentials in `svc-envio-encomienda/src/main/resources/application.properties`:
+
+    ```properties
+    spring.datasource.username=your_username
+    spring.datasource.password=your_password
+    ```
+  </Accordion>
+
+  <Accordion title="No semantic search results">
+    The shipment may not have been synchronized to the semantic graph. Check if both services are running and try creating a new shipment.
+  </Accordion>
+</AccordionGroup>
