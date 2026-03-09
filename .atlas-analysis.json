@@ -1,0 +1,118 @@
+{
+  "projectType": "api-service",
+  "projectName": "Sistema de Envío de Encomiendas con Web Semántica",
+  "projectDescription": "Microservices-based package shipping management system with semantic web integration using Apache Jena and OWL ontologies for intelligent data querying.",
+  "theme": "sequoia",
+  "primaryColor": "#2563eb",
+  "lightColor": "#3b82f6",
+  "darkColor": "#1e40af",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "architecture"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/semantic-web",
+              "concepts/ontology",
+              "concepts/shipment-lifecycle"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/setup",
+              "guides/creating-shipments",
+              "guides/semantic-search",
+              "guides/sparql-queries"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Shipment Service",
+            "pages": [
+              "api/shipments/overview",
+              "api/shipments/create",
+              "api/shipments/track",
+              "api/shipments/update-status",
+              "api/shipments/retrieve"
+            ]
+          },
+          {
+            "group": "Client Management",
+            "pages": [
+              "api/clients/overview",
+              "api/clients/history"
+            ]
+          },
+          {
+            "group": "Branch Offices",
+            "pages": [
+              "api/branches/overview",
+              "api/branches/list"
+            ]
+          },
+          {
+            "group": "Semantic Web API",
+            "pages": [
+              "api/semantic/overview",
+              "api/semantic/natural-language-search",
+              "api/semantic/sparql",
+              "api/semantic/synchronize"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Resources",
+        "groups": [
+          {
+            "group": "Additional Resources",
+            "pages": [
+              "resources/data-model",
+              "resources/ontology-reference",
+              "resources/error-handling",
+              "resources/deployment"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "RESTful API for package shipment management",
+    "Semantic web integration with Apache Jena",
+    "Natural language search using SPARQL queries",
+    "OWL ontology-based data modeling",
+    "Multi-branch shipment tracking",
+    "Automated semantic graph synchronization"
+  ],
+  "publicApiSurface": [
+    "POST /api/v1/envios - Create shipment",
+    "GET /api/v1/envios/{id} - Get shipment by ID",
+    "GET /api/v1/envios/seguimiento/{codigo} - Track shipment by code",
+    "PUT /api/v1/envios/actualizar-estado - Update shipment status",
+    "POST /api/v1/envios/asignar-placa - Assign vehicle to shipment",
+    "PUT /api/v1/envios/{id}/disponible - Mark shipment as available",
+    "POST /api/v1/envios/retirar - Retrieve package",
+    "GET /api/v1/envios/estado/{estado} - Get shipments by status",
+    "PUT /api/v1/envios/{id}/cancelar - Cancel shipment",
+    "GET /api/v1/envios/mis-envios - Get user shipment history",
+    "GET /api/v1/grafo/buscar - Natural language semantic search",
+    "POST /api/v1/grafo/sincronizar-envio - Synchronize shipment to semantic graph",
+    "POST /api/v1/grafo/sparql - Execute SPARQL query"
+  ]
+}
